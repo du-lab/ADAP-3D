@@ -48,7 +48,7 @@ PLOT_ALL_PEAKS = True
 VERBOSE = False
 MULTIPROCESS = False #True
 
-USE_HARD_CODED_DETECTION_PARAMETERS = True
+USE_HARD_CODED_DETECTION_PARAMETERS = False
 USE_ISOTOPE_PARAMETERS_FOR_ALL = False
 USE_SMALL_TEST_WINDOW = False
 
@@ -1552,8 +1552,8 @@ def main():
         isotope_coef_over_area_thresh = avg_coef_over_area/1.5
 
         # similarity with wavelet measures
-        avg_sim = wavelet_peak_similarity_arr.mean()
-        std_sim = wavelet_peak_similarity_arr.std()
+        avg_sim = wavelet_peak_similarity_arr.mean() # ignore
+        std_sim = wavelet_peak_similarity_arr.std() # ignore
         print "avg_sim: " + str(avg_sim)
         print "std_sim: " + str(std_sim)
         
