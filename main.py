@@ -46,7 +46,7 @@ import sys
 PLOT_ALL_PEAKS = True
 
 VERBOSE = False
-MULTIPROCESS = True
+MULTIPROCESS = False #True
 
 USE_HARD_CODED_DETECTION_PARAMETERS = True
 USE_ISOTOPE_PARAMETERS_FOR_ALL = False
@@ -1379,7 +1379,7 @@ def main():
     # parameters
     min_initial_intensity_thresh = 5000
     coef_over_area_initial_thresh = 100
-    wavelet_peak_similarity_thresh = "off"
+    wavelet_peak_similarity_thresh = "off" # ignore, done prior to asymmetric gaussian fit
     signal_noise_initial_thresh = "off"
     visualize_initial_peaks =False
     # number of scans used to calculate FWHM of MS peaks. Scans are selected randomly. The highest
