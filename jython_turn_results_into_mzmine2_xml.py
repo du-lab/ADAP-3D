@@ -167,7 +167,7 @@ def main():
 
     for k in range(len(peak_list_lines)-1):
         # get the file containing the peak shape data
-        peak_shape_file = open('Results/LastRun/PeakAllData/'+str(k)+'_peak.dat')
+        peak_shape_file = open(working_directory + 'PeakAllData/'+str(k)+'_peak.dat')
         peak_shape_file.readline()
         peak_shape_lines = peak_shape_file.readlines()
         cur_peak_shape_rt = []
@@ -178,7 +178,7 @@ def main():
         for i in peak_shape_lines:
             cur_peak_shape_rt.append(float(i.split(',')[0]))
             cur_peak_shape_intensity.append(float(i.split(',')[1]))
-            cur_peak_shape_scans.append(int(i.split(',')[2]))
+            cur_peak_shape_scans.append(int(i.split(',')[2]) + 1)
             if float(i.split(',')[1])>cur_peak_best_inten:
                 cur_peak_best_scan = int(i.split(',')[2])
                 cur_peak_best_inten = float(i.split(',')[1])

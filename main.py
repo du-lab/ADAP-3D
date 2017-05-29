@@ -22,7 +22,7 @@
 # adjacent (in m/z) slices of peaks.
 
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import pylab as pl
 import scipy.integrate as integrate
 import multiprocessing as mp
@@ -87,7 +87,7 @@ ISOTOPE_RESULT_PEAK_LIST = []
 
 def store_result(result):
     """ This is for multiprocessing to store the results in the global RESULT_LIST
-    
+
     :param result: result to append to list
     :type result: result objects (see data_model)
     """
@@ -97,7 +97,7 @@ def store_result(result):
 
 def isotope_store_result(result):
     """ So multiprocessing can store the results in global ISOTOPE_RESULT_PEAK_LIST
-    
+
     :param result: list of results to append to list
     :type result: list of peak objects (see data_model)
     """
@@ -111,29 +111,29 @@ def isotope_store_result(result):
 def peak_similarity_test(int_matrix,rightB,leftB,estimate_of_ms_fwhm,a,visualize):
     """
     For now lest use the normalized area similarity I came up with. It will be more sensitive.
-    Starting with the EIC sliced from the maxima, move up and down in mz and compare the profiles of 
+    Starting with the EIC sliced from the maxima, move up and down in mz and compare the profiles of
     the slices with the maxima slice. 0-> bad similarity 1-> good similarity
-    
+
     :param int_matrix: matrix of all intensities
     :param rightB: index of right bound of the peak.
     :param leftB: index of left bound of the peak.
-    :param estimate_of_ms_fwhm: estimate of mass spec full width half max in number of points. 
+    :param estimate_of_ms_fwhm: estimate of mass spec full width half max in number of points.
     :param a: row (mz) index of peak
     :param visualize: Boolean-> do you want to see what is going on?
-    :return: good peak boolean, mz upper bound (determined from similarity measures), mz lower bound, 
+    :return: good peak boolean, mz upper bound (determined from similarity measures), mz lower bound,
             list of all similarity values.
     """
 
     param_c=0.2
     param_b=pl.exp(-1.0/param_c)
     param_a=1.0/(1.0-param_b)
-    
+
     just_peak_eic = int_matrix[a,leftB:rightB]
     x = pl.arange(0,len(just_peak_eic))
     area = integrate.trapz(just_peak_eic,x=x)
 
     normalized_eic = just_peak_eic/area
-    
+
     if visualize:
         pl.plot(normalized_eic)
 
@@ -158,12 +158,12 @@ def peak_similarity_test(int_matrix,rightB,leftB,estimate_of_ms_fwhm,a,visualize
         if area2 < HP.get_epsilon():
             subtract_from_cur_inc +=1
             continue
-        normed_cur_eic = cur_eic/ area2 
+        normed_cur_eic = cur_eic/ area2
         diff_area = integrate.trapz(abs(normalized_eic-normed_cur_eic),x=x)
 
         if VERBOSE: print ("diff_area: " + str(diff_area))
 
-        #cur_similarity = 1-diff_area 
+        #cur_similarity = 1-diff_area
         cur_similarity = (pl.exp(-diff_area/param_c)-param_b)*param_a
 
         if visualize and (cur_similarity>HP.get_peak_similarity_threshold()):
@@ -173,7 +173,7 @@ def peak_similarity_test(int_matrix,rightB,leftB,estimate_of_ms_fwhm,a,visualize
             sim_vals.append(cur_similarity)
 
     cur_inc-=1
-    cur_inc-=subtract_from_cur_inc 
+    cur_inc-=subtract_from_cur_inc
 
     if VERBOSE or visualize:
         print("cur_inc: " + str(cur_inc))
@@ -196,12 +196,12 @@ def peak_similarity_test(int_matrix,rightB,leftB,estimate_of_ms_fwhm,a,visualize
         if area2 < HP.get_epsilon():
             subtract_from_cur_inc +=1
             continue
-        normed_cur_eic = cur_eic/ area2 
+        normed_cur_eic = cur_eic/ area2
         diff_area = integrate.trapz(abs( normalized_eic-normed_cur_eic),x=x)
 
         if VERBOSE: print("diff_area: " + str(diff_area))
 
-        #cur_similarity = 1-diff_area 
+        #cur_similarity = 1-diff_area
         cur_similarity = (pl.exp(-diff_area/param_c)-param_b)*param_a
 
         if visualize and (cur_similarity>HP.get_peak_similarity_threshold()):
@@ -228,7 +228,7 @@ def peak_similarity_test(int_matrix,rightB,leftB,estimate_of_ms_fwhm,a,visualize
         good_peak_bool = False
 
     if (a+cur_inc+1)>=len(int_matrix[:,0]):
-        to_return_up = len(int_matrix[:,0])-1 
+        to_return_up = len(int_matrix[:,0])-1
     else:
         to_return_up = a+cur_inc+1
     if (a-cur_inc2-1)<0:
@@ -249,18 +249,18 @@ def remove_bad_peak_info_best_we_can_sparse(to_mod_int_matrix,
                                             a,
                                             visualize):
     """
-    This function will remove, from to_mod_int_matrix, the data that should be bad. It uses the 
+    This function will remove, from to_mod_int_matrix, the data that should be bad. It uses the
     full width at half max of the mass spec data (estimated value) to select a strip of data that will
     be set to zero. Everything in the retention time range of the EIC is removed. There is a danger that
     the edge of the EIC will be a good peak but its ok because when a new EIC is made around a maxima it
     uses the int_matrix from which no data has been removed.
-    
+
     :param to_mod_int_matrix: (sparce matrix) The matrix of intensities that will have values set to zero if they are "bad" (not part of peak)
     :param estimate_of_ms_fwhm: (int) Estimated value of the full width at half max of a mass spec in number of data points. scan peak.
-    :param eic_left_bound: (int) Scan number left boundary of EIC investigated. 
+    :param eic_left_bound: (int) Scan number left boundary of EIC investigated.
     :param eic_right_bound: (int) Scan number right boundary of peak investigated.
     :param a: (int) Row (mz) index of peak (even though it is bad peak)
-    :param visualize: (boolean) Visualize whats happening? 
+    :param visualize: (boolean) Visualize whats happening?
     :return: return the modified intensity matrix
     """
 
@@ -300,18 +300,18 @@ def remove_bad_peak_info_best_we_can(to_mod_int_matrix,
                                      a,
                                      visualize):
     """
-    This function will remove, from to_mod_int_matrix, the data that should be bad. It uses the 
+    This function will remove, from to_mod_int_matrix, the data that should be bad. It uses the
     full width at half max of the mass spec data (estimated value) to select a strip of data that will
     be set to zero. Everything in the retention time range of the EIC is removed. There is a danger that
     the edge of the EIC will be a good peak but its ok because when a new EIC is made around a maxima it
     uses the int_matrix from which no data has been removed.
-    
+
     :param to_mod_int_matrix: (numpy matrix) The matrix of intensities that will have values set to zero if they are "bad" (not part of peak)
     :param estimate_of_ms_fwhm: (int) Estimated value of the full width at half max of a mass spec in number of data points. scan peak.
-    :param eic_left_bound: (int) Scan number left boundary of EIC investigated. 
+    :param eic_left_bound: (int) Scan number left boundary of EIC investigated.
     :param eic_right_bound: (int) Scan number right boundary of peak investigated.
     :param a: (int) Row (mz) index of peak (even though it is bad peak)
-    :param visualize: (boolean) Visualize whats happening? 
+    :param visualize: (boolean) Visualize whats happening?
     :return: return the modified intensity matrix
     """
 
@@ -367,8 +367,8 @@ def get_peakwidth_and_coef_over_area(int_matrix,
     :param visualize: (boolean) See the peaks?
     :param all_coef_over_area: (list float) all coefficient over area values for each peak.
     :param all_wavelet_similarity_vals: (list float) all wavelet similarity values.
-    :return: (int) scan number (index) of right side of final peak, 
-                (int) scan number (index) of left side of final peak, 
+    :return: (int) scan number (index) of right side of final peak,
+                (int) scan number (index) of left side of final peak,
                 coef/area of final peak,
                 wavelet similarity of final peak.
     """
@@ -380,7 +380,7 @@ def get_peakwidth_and_coef_over_area(int_matrix,
 
     count_num_peak_width_correct_max = 0
     for i,j in enumerate(all_peak_positions):
-    
+
         # make sure you are getting the peak that contains the relevant maxima
         eic_max_index = j
         scan_num_index_max = j+eic_left_bound
@@ -403,7 +403,7 @@ def get_peakwidth_and_coef_over_area(int_matrix,
         # an appropriate number of similar EICs for it to be a good peak.
         # Lets say on either side if must have FWHM/2 + 1 (in units of num. intervals) similar
         # EICs to be good peak
-        
+
         # first just grab the intensities of the actual peak
         scan_num_eic_left = all_left_bounds[i] + eic_left_bound
         scan_num_eic_right = all_right_bounds[i] + eic_left_bound
@@ -416,7 +416,7 @@ def get_peakwidth_and_coef_over_area(int_matrix,
             pl.plot(eic_peak )
             pl.title("does this look like the right peak???")
             pl.show()
-    
+
         cur_coef_over_area = all_coef_over_area[i]
         cur_wav_peak_sim = all_wavelet_similarity_vals[i]
 
@@ -426,7 +426,7 @@ def get_peakwidth_and_coef_over_area(int_matrix,
 def plot_color_map_peak_and_box_bounds(int_matrix,rightB,leftB,mz_up_bound,mz_low_bound):
     """
     Plot a color map of the peak a a box around it showing it's detected boundaries.
-    
+
     :param int_matrix: Matrix of intensities.
     :param rightB: (int) index of right bound.
     :param leftB:  (int) index of left bound.
@@ -438,14 +438,14 @@ def plot_color_map_peak_and_box_bounds(int_matrix,rightB,leftB,mz_up_bound,mz_lo
     mzr = mz_up_bound+15
     if mzl < 0:
         mzl = 0
-    if mzr > len(int_matrix[:,0]):
-        mzr = len(int_matrix[:,0])
+    if mzr > int_matrix.shape[0]:
+        mzr = int_matrix.shape[0]
     rtl = leftB-10
     rtr = rightB+10
     if rtl < 0:
         rtl = 0
-    if rtr > len(int_matrix[0,:]):
-        rtl = len(int_matrix[0,:])
+    if rtr > int_matrix.shape[1]:
+        rtl = int_matrix.shape[1]
     print "pl.shape(int_matrix): " + str(pl.shape(int_matrix))
 
     shiftMZ = mz_low_bound - mzl
@@ -477,11 +477,11 @@ def get_peak_list(peakDetector,
     transform to look for peaks. If it finds a peak at the maxima under investigation it looks at
     adjacent slices in the m/z domain to determine if the peak is good by comparing the similarity
     of those curves with the curve at the maxima. If not good peaks (at all) are found it sets all that
-    data to zero in to_mod_int_matrix before performing a search for the next local maxima. If good peaks are 
+    data to zero in to_mod_int_matrix before performing a search for the next local maxima. If good peaks are
     found that are not at the most intense location, all the data EXCEPT the data corresponding to those good
     peaks is set to zero. A good peak is added to the result list before that data is set to zero. int_matrix
     is never modified so all EICs contain accurate description of data.
-    
+
     :param peakDetector: Peak detection object configured for finding peaks in EICs.
     :param int_matrix: Matrix of all intensity values (row->m/z, col->rt).
     :param to_mod_int_matrix: Modified int_matrix. Detected peaks and bad peaks have been set to zero.
@@ -490,9 +490,9 @@ def get_peak_list(peakDetector,
     :param estimate_of_ms_fwhm: (int) Estimated value of the full width at half max of a mass spec in number of data points. scan peak.
     :param min_intensity_thresh: (float) Peaks below this intensity value are not considered.
     :param rt: (list float) list of retention times.
-    :param unique_mz_list: (list int (floats rounded to 4th decimal place then times 10000 and converted to int)) 
+    :param unique_mz_list: (list int (floats rounded to 4th decimal place then times 10000 and converted to int))
         list of all unique mz values as integers
-    :param mz_low_edge: (int) Because the matrices are only portions of the data this variable tells you where the 
+    :param mz_low_edge: (int) Because the matrices are only portions of the data this variable tells you where the
         lower m/z (row) edge of that data begins in the full data set.
     :param rt_low_edge: (int) Same as above but reference for RT (col).
     :return: returns result object with all the detected peaks.
@@ -600,6 +600,7 @@ def get_peak_list(peakDetector,
                     = pl.copy(cur_int_matrix[put_good_peak_back_mz_low:put_good_peak_back_mz_high,eic_left_bound+all_left_bounds[alpha]:eic_left_bound+all_right_bounds[alpha]])
 
         else:
+            # We choose the peak whose apex scan number coincides with b and return its characteristics
             # The bounds that are returned from this are the indices in the int_matrix
             rightB, leftB,cur_coef_over_area,cur_wav_peak_sim = get_peakwidth_and_coef_over_area(cur_int_matrix,
                                                                             all_peak_positions,
@@ -674,7 +675,7 @@ def get_peak_list(peakDetector,
                 visualize_post_initial_peaks = False
                 peakDetector.setVisualize(False)
                 peakDetector.setVerbose(False)
-    
+
     return result_obj
 
 
@@ -685,16 +686,16 @@ def find_isotope_peak(cur_peak_object,
                         visualize_post_initial_peaks,
                         estimate_of_ms_fwhm,
                         rt,
-                        unique_mz_list 
+                        unique_mz_list
                         ):
     """
     Given a peak (presumably monoisotopic but not necessarily) find the isotope(s) of this peak.
     Searches in a narrow m/z strips near where the isotopes are expected to be. If one isotope is found
-    it searches for the next. If an isotope is not found it stops. 
+    it searches for the next. If an isotope is not found it stops.
     Uses relaxed parameters for search.
     Uses a linear scoring mechanism if multiple candidates are found. Compares intensity, m/z distance, rt distance,
     similarity to input peak to choose the best possible candidate.
-    
+
     :param cur_peak_object: (Peak object) Input peak.
     :param int_matrix: Matrix of all intensities.
     :param isotope_peak_detector: (peak detection object) Configured for detection of isotopes.
@@ -702,7 +703,7 @@ def find_isotope_peak(cur_peak_object,
     :param visualize_post_initial_peaks: (boolean) See process?
     :param estimate_of_ms_fwhm: (int) Estimate of mass spec scan full width at half max in number of points.
     :param rt: (list) List of retention times.
-    :param unique_mz_list: (list int (floats rounded to 4th decimal place then times 10000 and converted to int)) 
+    :param unique_mz_list: (list int (floats rounded to 4th decimal place then times 10000 and converted to int))
         list of all unique mz values as integers
     :return: Returns cur_peak_object but with isotope list full of peaks that are isotopes detected.
     """
@@ -714,7 +715,7 @@ def find_isotope_peak(cur_peak_object,
     rt_scan_difference_threshold = 4
     # Threshold between the expected MZ index of the isotope and the index that is found difference
     mz_index_difference_threshold = 2*estimate_of_ms_fwhm
-    
+
     plusIso = 1.0000
 
     count = 0
@@ -760,7 +761,7 @@ def find_isotope_peak(cur_peak_object,
 
         if mz_index_low<0: mz_index_low=0
         if mz_index_high>len(unique_mz_list): mz_index_high=len(unique_mz_list)
-        
+
         rt_index = cur_peak_object.rtIndex
         if VERBOSE:
             print "rt_index " + str(rt_index )
@@ -807,7 +808,7 @@ def find_isotope_peak(cur_peak_object,
             cur_peak.setMZMaxIndex(resultO.mz_max_index[i])
             cur_peak.setRTMinIndex(resultO.rt_min_index[i])
             cur_peak.setRTMaxIndex(resultO.rt_max_index[i])
-            
+
             cur_peak.setCoefOverArea(resultO.coef_over_areas[i])
             cur_peak.setAsymGausFit(resultO.asym_gaus_fit_vals[i])
 
@@ -838,7 +839,7 @@ def find_isotope_peak(cur_peak_object,
                 iso_peak_intensity = int_matrix[this_peak_obj.mzIndex,cur_peak_object.rtMinIndex:cur_peak_object.rtMaxIndex]
                 similarity_between = cts.get_similarity(mono_iso_intensity, iso_peak_intensity )
                 similarity_between_list.append(similarity_between)
-                
+
                 # Check MZ value of peak compared to mono. iso + H
                 mz_diff_num_index = abs(best_mz_idex_guess-this_peak_obj.mzIndex)
 
@@ -928,7 +929,7 @@ def find_isotope_peak(cur_peak_object,
 def load_data_points_in_lists(dfr,absolute_intensity_thresh):
     """
     Fills lists of mz values, RT values, and intensities as well as list of all data points
-    
+
     :param dfr: Data file reader object
     :param absolute_intensity_thresh: Intensity below which everything is thrown out.
     :return: Lists in this order mz_by_scan, inten_by_scan, rt, list_all_data_points
@@ -1001,7 +1002,7 @@ def get_unique_mz_values(mz_by_scan,rt):
     If we have a nearly perfect grid we can put all the intensities into a matrix. The only tricky
     part is finding all of the unique m/z values... This is tricky because no scan contains all m/z
     values -> lots of gaps. Look at all scans to find all mz values.
-    
+
     :param mz_by_scan: list of mz values
     :param rt: list of retention time values
     :return: list of unique mz values
@@ -1027,7 +1028,7 @@ def get_unique_mz_values(mz_by_scan,rt):
 
     if not USE_SMALL_TEST_WINDOW:
         for i in unique_mzs:
-            if i < (1000*10000):
+            if i < (1000*10000): # Do not look for methabolites with m/z > 10000
                 unique_mz_list.append(i)
     else:
         for i in unique_mzs:
@@ -1061,15 +1062,15 @@ def get_initial_peaks_and_peak_info(how_many_initial_peak_for_determining_parame
     transform to look for peaks. If it finds a peak at the maxima under investigation it looks at
     adjacent slices in the m/z domain to determine if the peak is good by comparing the similarity
     of those curves with the curve at the maxima. If not good peaks (at all) are found it sets all that
-    data to zero in to_mod_int_matrix before performing a search for the next local maxima. If good peaks are 
+    data to zero in to_mod_int_matrix before performing a search for the next local maxima. If good peaks are
     found that are not at the most intense location, all the data EXCEPT the data corresponding to those good
     peaks is set to zero. A good peak is added to the result list before that data is set to zero. int_matrix
-    is never modified so all EICs contain accurate description of data. 
-    
+    is never modified so all EICs contain accurate description of data.
+
     This continues until it has found a given number of peaks. It stores certian properties (see return below)
     of the peaks that can be used to adaptively determine good parameters for the data set.
-    
-    :param how_many_initial_peak_for_determining_parameters: The number of peaks to find and to collect 
+
+    :param how_many_initial_peak_for_determining_parameters: The number of peaks to find and to collect
         information from to determine peak picking parameters.
     :type how_many_initial_peak_for_determining_parameters: int
     :param eic_num_scans_leftright: How many scans in RT domain to build EIC around maxima.
@@ -1084,14 +1085,14 @@ def get_initial_peaks_and_peak_info(how_many_initial_peak_for_determining_parame
     :type rt: list float
     :param estimate_of_ms_fwhm: Estimated value of the full width at half max of a mass spec in number of data points. scan peak.
     :type estimate_of_ms_fwhm: int
-    :param visualize_initial_peaks: see the process? 
+    :param visualize_initial_peaks: see the process?
     :type visualize_initial_peaks: bool
-    :param unique_mz_list: (list int (floats rounded to 4th decimal place then times 10000 and converted to int)) 
+    :param unique_mz_list: (list int (floats rounded to 4th decimal place then times 10000 and converted to int))
         list of all unique mz values as integers
-    :return: The detected peaks in Result() object form, 
-            fit parameters for all peaks (2d array), 
-            array of wavelet similarity values, 
-            array of coefficient over area values, 
+    :return: The detected peaks in Result() object form,
+            fit parameters for all peaks (2d array),
+            array of wavelet similarity values,
+            array of coefficient over area values,
             array of the peak widths.
     """
 
@@ -1180,7 +1181,7 @@ def get_initial_peaks_and_peak_info(how_many_initial_peak_for_determining_parame
             to_mod_int_matrix[mz_low_bound:mz_up_bound,leftB:rightB] = 0.0
 
             if visualize_initial_peaks:
-                plot_color_map_peak_and_box_bounds(int_matrix,rightB,leftB,mz_up_bound,mz_low_bound)
+                plot_color_map_peak_and_box_bounds(pl.asarray(int_matrix.todense()),rightB,leftB,mz_up_bound,mz_low_bound)
 
             cur_peak_width = rightB-leftB
             if good_peak_bool:
@@ -1285,6 +1286,7 @@ def convert_result_object_to_list_of_peaks(list_of_results):
 
     return all_peak_objects
 
+
 def multiple_iso_search_for_multiprocessing(cur_peaks,
                             int_matrix,
                             isotope_peak_detector,
@@ -1381,7 +1383,7 @@ def main():
     coef_over_area_initial_thresh = 100
     wavelet_peak_similarity_thresh = "off" # ignore, done prior to asymmetric gaussian fit
     signal_noise_initial_thresh = "off"
-    visualize_initial_peaks =False
+    visualize_initial_peaks = False
     # number of scans used to calculate FWHM of MS peaks. Scans are selected randomly. The highest
     # intensity peak from each random scan is used for a single estimate of FWHM. ex. if this number is
     # 20 then the highest peaks fron 20 random scans are used to calculate FWHM.
@@ -1397,7 +1399,7 @@ def main():
 
     # percent of average peak width (found from initial high intensity peaks)
     # used for determining allowance of peak widths lower bound. The upper bound is less strct and
-    # depends on the variation so just use the maximum peak width of the good peaks value. 
+    # depends on the variation so just use the maximum peak width of the good peaks value.
     # Maybe try using a smaller value here. This appears to be pretty big.
     low_bound_peak_width_percent = 0.75
 
@@ -1435,7 +1437,7 @@ def main():
     # part is finding al of the unique m/z value... This is tricky because no scan contains all m/z
     # values -> lots of gaps. Look at all scans to find all mz values.
     unique_mz_list = get_unique_mz_values(mz_by_scan,rt)
-    
+
     unique_mz_list.sort()
     # map the values to the index they belong
     mz_to_index_map = {}
@@ -1472,13 +1474,13 @@ def main():
         cur_mz_index = mz_to_index_map[cur_mz ]
 
         int_matrix[cur_mz_index,cur_scan_index] = cur_intensity
-        to_mod_int_matrix[cur_mz_index,cur_scan_index] = cur_intensity 
+        to_mod_int_matrix[cur_mz_index,cur_scan_index] = cur_intensity
         #if not USE_SMALL_TEST_WINDOW:
-        #    int_matrix[cur_mz_index,cur_scan_index] = cur_intensity 
-        #    to_mod_int_matrix[cur_mz_index,cur_scan_index] = cur_intensity 
+        #    int_matrix[cur_mz_index,cur_scan_index] = cur_intensity
+        #    to_mod_int_matrix[cur_mz_index,cur_scan_index] = cur_intensity
         #else:
-        #    int_matrix[cur_mz_index,cur_scan_index-int(MZ_MIN)+1] = cur_intensity 
-        #    to_mod_int_matrix[cur_mz_index,cur_scan_index-int(MZ_MIN)+1] = cur_intensity 
+        #    int_matrix[cur_mz_index,cur_scan_index-int(MZ_MIN)+1] = cur_intensity
+        #    to_mod_int_matrix[cur_mz_index,cur_scan_index-int(MZ_MIN)+1] = cur_intensity
 
         if cur_intensity< HP.get_epsilon():
             count_zero_intensity+=1
@@ -1545,9 +1547,9 @@ def main():
         avg_peak_width = peak_width_arr.mean()
         std_peak_width = peak_width_arr.std()
 
-        avg_coef_over_area=coef_over_area_arr.mean() 
-        std_coef_over_area=coef_over_area_arr.std() 
-        
+        avg_coef_over_area=coef_over_area_arr.mean()
+        std_coef_over_area=coef_over_area_arr.std()
+
         coef_over_area_thresh =avg_coef_over_area/1.5
         isotope_coef_over_area_thresh = avg_coef_over_area/1.5
 
@@ -1556,7 +1558,7 @@ def main():
         std_sim = wavelet_peak_similarity_arr.std() # ignore
         print "avg_sim: " + str(avg_sim)
         print "std_sim: " + str(std_sim)
-        
+
         # bounds of allowed peak widths in units of number of scans
         peak_duration_range \
             = [int(round(avg_peak_width)) -  int(round(avg_peak_width*low_bound_peak_width_percent )),
@@ -1570,7 +1572,7 @@ def main():
         print ("std_coef_over_area: " + str(std_coef_over_area) )
         print ("coef_over_area_thresh: " + str(coef_over_area_thresh) )
         print ("peak_duration_range: " + str(peak_duration_range) )
-        
+
         #highest_wavelet_scale = avg_peak_width+std_peak_width
         #highest_wavelet_scale = avg_peak_width
         #highest_wavelet_scale = avg_peak_width-std_peak_width
@@ -1632,7 +1634,7 @@ def main():
     num_mz_steps = tot_num_mz_intervals/step_size_mz_num_intervals
 
     the_peak_detector = peakdetector.PeakDetector()
-            
+
     the_peak_detector.setVisualize(visualize_post_initial_peaks)
     the_peak_detector.setMinIntensityThreshold(min_intensity_thresh)
     the_peak_detector.setCoefOverAreaThreshold(coef_over_area_thresh)
@@ -1711,11 +1713,11 @@ def main():
     if MULTIPROCESS:
         print "-- close and joining peak picking processes --"
         print "..."
-        time.sleep(1) 
+        time.sleep(1)
         pool.close()
-        time.sleep(1) 
+        time.sleep(1)
         pool.join()
-        time.sleep(1) 
+        time.sleep(1)
         print "-- done close joining peak picking processes --"
 
     ###########################################################

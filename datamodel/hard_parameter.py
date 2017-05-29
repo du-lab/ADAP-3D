@@ -108,4 +108,3 @@ class MeasurementParameters:
         self.asymmetric_fit_similarity_threshold = 0.0
         self.num_sim_either_side_threshold = 0
         self.num_sim_total_threshold = 0
-
