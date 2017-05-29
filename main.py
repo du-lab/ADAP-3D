@@ -21,7 +21,7 @@
 # This is the main body of the program which detects peaks using similarity measurements between
 # adjacent (in m/z) slices of peaks.
 
-import matplotlib
+#import matplotlib
 # matplotlib.use('Agg')
 import pylab as pl
 import scipy.integrate as integrate
@@ -50,7 +50,7 @@ MULTIPROCESS = False #True
 
 USE_HARD_CODED_DETECTION_PARAMETERS = False
 USE_ISOTOPE_PARAMETERS_FOR_ALL = False
-USE_SMALL_TEST_WINDOW = False
+USE_SMALL_TEST_WINDOW = True
 
 # isotopes will be shown for the tmp_mz_of_peak value set
 ONLY_VISUALIZE_ISOTOPES_FOR_NORMAL_DETECTED_PEAK = False
@@ -975,8 +975,8 @@ def load_data_points_in_lists(dfr,absolute_intensity_thresh):
             #if (count>200)and(count<1200):
             cur_rt = dfr.get_rt_from_scan_num(count)
             if (cur_rt<(RT_MAX*60.0)) and (cur_rt>(RT_MIN*60.0)):
-                sys.stdout.write("\r"+str(count))
-                sys.stdout.flush()
+#                sys.stdout.write("\r"+str(count))
+#                sys.stdout.flush()
                 mz_by_scan.append(mz)
                 inten_by_scan.append(inten)
                 rt.append(cur_rt)
