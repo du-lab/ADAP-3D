@@ -26,8 +26,8 @@ class RequiredParameters:
 
         self.peak_params = MeasurementParameters()
         # similarity threshold for determining if two peaks are similar
-        #self.peak_params.similarity_threshold = 0.5
-        self.peak_params.similarity_threshold = 0.35 # Relaxed
+        self.peak_params.similarity_threshold = 0.5
+        # self.peak_params.similarity_threshold = 0.35 # Relaxed
         self.peak_params.asymmetric_fit_similarity_threshold = 0.25
         # the number of similar peaks on either side of the maximum peak required for a peak to be considered
         # a good peak. If this is set to two then a total of 5 peaks must be similar (2 on each side + 1 for

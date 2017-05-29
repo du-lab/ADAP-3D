@@ -22,7 +22,7 @@
 # adjacent (in m/z) slices of peaks.
 
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import pylab as pl
 import scipy.integrate as integrate
 import multiprocessing as mp
@@ -46,9 +46,9 @@ import sys
 PLOT_ALL_PEAKS = True
 
 VERBOSE = False
-MULTIPROCESS = True
+MULTIPROCESS = False
 
-USE_HARD_CODED_DETECTION_PARAMETERS = True
+USE_HARD_CODED_DETECTION_PARAMETERS = False
 USE_ISOTOPE_PARAMETERS_FOR_ALL = False
 USE_SMALL_TEST_WINDOW = False
 
@@ -438,14 +438,14 @@ def plot_color_map_peak_and_box_bounds(int_matrix,rightB,leftB,mz_up_bound,mz_lo
     mzr = mz_up_bound+15
     if mzl < 0:
         mzl = 0
-    if mzr > len(int_matrix[:,0]):
-        mzr = len(int_matrix[:,0])
+    if mzr > int_matrix.shape[0]:
+        mzr = int_matrix.shape[0]
     rtl = leftB-10
     rtr = rightB+10
     if rtl < 0:
         rtl = 0
-    if rtr > len(int_matrix[0,:]):
-        rtl = len(int_matrix[0,:])
+    if rtr > int_matrix.shape[1]:
+        rtl = int_matrix.shape[1]
     print "pl.shape(int_matrix): " + str(pl.shape(int_matrix))
 
     shiftMZ = mz_low_bound - mzl
@@ -600,6 +600,7 @@ def get_peak_list(peakDetector,
                     = pl.copy(cur_int_matrix[put_good_peak_back_mz_low:put_good_peak_back_mz_high,eic_left_bound+all_left_bounds[alpha]:eic_left_bound+all_right_bounds[alpha]])
 
         else:
+            # We choose the peak whose apex scan number coincides with b and return its characteristics
             # The bounds that are returned from this are the indices in the int_matrix
             rightB, leftB,cur_coef_over_area,cur_wav_peak_sim = get_peakwidth_and_coef_over_area(cur_int_matrix,
                                                                             all_peak_positions,
@@ -1027,7 +1028,7 @@ def get_unique_mz_values(mz_by_scan,rt):
 
     if not USE_SMALL_TEST_WINDOW:
         for i in unique_mzs:
-            if i < (1000*10000):
+            if i < (1000*10000): # Do not look for methabolites with m/z > 10000
                 unique_mz_list.append(i)
     else:
         for i in unique_mzs:
@@ -1180,7 +1181,7 @@ def get_initial_peaks_and_peak_info(how_many_initial_peak_for_determining_parame
             to_mod_int_matrix[mz_low_bound:mz_up_bound,leftB:rightB] = 0.0
 
             if visualize_initial_peaks:
-                plot_color_map_peak_and_box_bounds(int_matrix,rightB,leftB,mz_up_bound,mz_low_bound)
+                plot_color_map_peak_and_box_bounds(pl.asarray(int_matrix.todense()),rightB,leftB,mz_up_bound,mz_low_bound)
 
             cur_peak_width = rightB-leftB
             if good_peak_bool:
@@ -1285,6 +1286,7 @@ def convert_result_object_to_list_of_peaks(list_of_results):
 
     return all_peak_objects
 
+
 def multiple_iso_search_for_multiprocessing(cur_peaks,
                             int_matrix,
                             isotope_peak_detector,
@@ -1381,7 +1383,7 @@ def main():
     coef_over_area_initial_thresh = 100
     wavelet_peak_similarity_thresh = "off"
     signal_noise_initial_thresh = "off"
-    visualize_initial_peaks =False
+    visualize_initial_peaks = False
     # number of scans used to calculate FWHM of MS peaks. Scans are selected randomly. The highest
     # intensity peak from each random scan is used for a single estimate of FWHM. ex. if this number is
     # 20 then the highest peaks fron 20 random scans are used to calculate FWHM.
