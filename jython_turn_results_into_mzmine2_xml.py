@@ -254,9 +254,14 @@ def main():
     # f.write(rough_string)
     # f.close()
 
-    f = open('Results/LastRun/full_peaklist.xml', 'w')
+    f = open(working_directory + 'full_peaklist.xml', 'w')
     f.write(clean_up_output(top))
     f.close()
 
 if __name__ == '__main__':
     main()
+    
+    
+    
+    
+# jython jython_turn_results_into_mzmine2_xml.py -d /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/results/    
