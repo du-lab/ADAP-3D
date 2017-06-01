@@ -26,7 +26,6 @@ from java.io import DataOutputStream
 import base64
 import argparse
 
-
 def clean_up_output(elem):
     """Return an XML string for the Element with proper indents and returns. """
 
@@ -164,8 +163,8 @@ def main():
     raw_file_elem = ET.SubElement(top, 'raw_file')
     raw_file_elem.text = file_name
 
-
     for k in range(len(peak_list_lines)-1):
+        #print peak_list_lines[k]
         # get the file containing the peak shape data
         peak_shape_file = open(working_directory + 'PeakAllData/'+str(k)+'_peak.dat')
         peak_shape_file.readline()
@@ -178,7 +177,7 @@ def main():
         for i in peak_shape_lines:
             cur_peak_shape_rt.append(float(i.split(',')[0]))
             cur_peak_shape_intensity.append(float(i.split(',')[1]))
-            cur_peak_shape_scans.append(int(i.split(',')[2]) + 1)
+            cur_peak_shape_scans.append(int(i.split(',')[2]))
             if float(i.split(',')[1])>cur_peak_best_inten:
                 cur_peak_best_scan = int(i.split(',')[2])
                 cur_peak_best_inten = float(i.split(',')[1])
@@ -254,7 +253,7 @@ def main():
     # f.write(rough_string)
     # f.close()
 
-    f = open('Results/LastRun/full_peaklist.xml', 'w')
+    f = open(working_directory + 'full_peaklist.xml.mpl', 'w')
     f.write(clean_up_output(top))
     f.close()
 

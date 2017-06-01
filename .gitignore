@@ -1,0 +1,8 @@
+*.pyc
+.DS_Store
+*.swp
+*.cdf
+*.CDF
+Results
+RunScripts
+.idea/

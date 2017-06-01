@@ -46,11 +46,11 @@ import sys
 PLOT_ALL_PEAKS = True
 
 VERBOSE = False
-MULTIPROCESS = False #True
+MULTIPROCESS = False
 
 USE_HARD_CODED_DETECTION_PARAMETERS = False
 USE_ISOTOPE_PARAMETERS_FOR_ALL = False
-USE_SMALL_TEST_WINDOW = True
+USE_SMALL_TEST_WINDOW = False
 
 # isotopes will be shown for the tmp_mz_of_peak value set
 ONLY_VISUALIZE_ISOTOPES_FOR_NORMAL_DETECTED_PEAK = False
@@ -188,7 +188,7 @@ def peak_similarity_test(int_matrix,rightB,leftB,estimate_of_ms_fwhm,a,visualize
         if ((a-cur_inc2)< 0)or(cur_inc>=2*estimate_of_ms_fwhm):
             break
         cur_eic = int_matrix[a-cur_inc2,leftB:rightB]
-        # because of imperfections in building the the intesity matrix (int_matrix) there can be
+        # because of imperfections in building the the intensity matrix (int_matrix) there can be
         # gaps between real slices of data filled with zeros. This is because somewhere (for a
         # reason I don't yet understand) there are slightly different mz values that mess up the
         # assumed perfect grid of the matrix.
