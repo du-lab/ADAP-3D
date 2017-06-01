@@ -1339,6 +1339,10 @@ def main():
     inargs = parser.parse_args()
 
     df_str = inargs.f
+    
+    
+    
+    
 
     ##########################################################
     ######## Get the output directory set up first ###########
@@ -1356,6 +1360,10 @@ def main():
     if os.path.exists(result_dir_str):
         shutil.rmtree(result_dir_str)
     os.mkdir(result_dir_str)
+    
+    
+    
+    
 
     ##########################################################
     #################### Things to set #######################
@@ -1388,6 +1396,11 @@ def main():
     # intensity peak from each random scan is used for a single estimate of FWHM. ex. if this number is
     # 20 then the highest peaks fron 20 random scans are used to calculate FWHM.
     number_of_scans_for_fwhm_calc = 20
+    
+    
+    
+    
+    
 
     ##########################################################
     ### Current parameters for peak picking after ############
@@ -1406,6 +1419,11 @@ def main():
     ###########################################################
     #################### Done with setting things #############
     ###########################################################
+    
+    
+    
+    
+    
 
     ###########################################################
     ### Use initialized parameters. No setting in here ########
@@ -1419,6 +1437,10 @@ def main():
     peakDetector.setWaveletLargeScale(initial_highest_wavelet_scale)
     peakDetector.setWaveletScaleIncrement(initial_wavelet_scale_increment)
     ###########################################################
+
+
+
+
 
     ###########################################################
     ######## Get the all of the data into useful format #######
@@ -1490,6 +1512,11 @@ def main():
     print "Done filling sparse matrices with all data\n"
     print "count_zero_intensity: " + str(count_zero_intensity)
     print "countNonZeroIntensity: " + str(countNonZeroIntensity)
+    
+    
+    
+    
+    
 
     ###########################################################
     #### find an estimate of the FWHM of MS peaks #############
@@ -1866,3 +1893,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+#%run -d main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/DC_010814_StandardsMixTest1_34StandardMix_01.mzXML --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results

@@ -259,3 +259,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# jython jython_turn_results_into_mzmine2_xml.py -d /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/results/    
