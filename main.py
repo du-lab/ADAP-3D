@@ -838,7 +838,7 @@ def find_isotope_peak(cur_peak_object,
                     intensity_list.append(0.0)
                     similarity_between_list.append(0.0)
                     continue
-                if rt_diff_in_num_scans >rt_scan_difference_threshold:
+                if rt_diff_in_num_scans > rt_scan_difference_threshold:
                     mz_score_list.append(0.0)
                     rt_core_list.append(0.0)
                     intensity_list.append(0.0)
@@ -912,7 +912,7 @@ def find_isotope_peak(cur_peak_object,
     return cur_peak_object
 
 
-def load_data_points_in_lists(dfr,absolute_intensity_thresh):
+def load_data_points_in_lists(dfr,absolute_intensity_thresh,mz_upper_cutoff):
     """
     Fills lists of mz values, RT values, and intensities as well as list of all data points
     
@@ -941,8 +941,8 @@ def load_data_points_in_lists(dfr,absolute_intensity_thresh):
             rt.append(dfr.get_rt_from_scan_num(count))
             scan_numbers.append(dfr.get_act_scan_num(count))
             for i in range(len(mz)):
-                # For testing HERE
-                if (mz[i]>0.0)and(mz[i]<1000.0):
+                # Do not look for methabolites with m/z > this mz_upper_cutoff value.
+                if (mz[i]>0.0)and(mz[i]<mz_upper_cutoff):
                 #if (mz[i]>0.0)and(mz[i]<1000.0):
                     if inten[i]<absolute_intensity_thresh:
                         continue
@@ -1017,7 +1017,7 @@ def get_unique_mz_values(mz_by_scan,rt,mz_upper_cutoff):
     if not USE_SMALL_TEST_WINDOW:
         for i in unique_mzs:
 
-            # Do not look for methabolites with m/z > 10000.
+            # Do not look for methabolites with m/z > 1000.
             if i < (1000*10000):
                 unique_mz_list.append(i)
     else:
@@ -1410,7 +1410,7 @@ def main():
     ###########################################################
     dfr = easyio.DataFileReader(df_str,True)
 
-    mz_by_scan, inten_by_scan, rt, scan_numbers, list_all_data_points = load_data_points_in_lists(dfr,absolute_intensity_thresh)
+    mz_by_scan, inten_by_scan, rt, scan_numbers, list_all_data_points = load_data_points_in_lists(dfr,absolute_intensity_thresh,mz_upper_cutoff)
 
     print "Sorting the datapoints list"
     list_all_data_points.sort(key=lambda x:x.intensity,reverse=True)
