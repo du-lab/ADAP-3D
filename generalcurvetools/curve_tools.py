@@ -93,18 +93,22 @@ def estimate_fwhm_ms(int_matrix,numberOfScansForFWHMCalc):
     :param numberOfScansForFWHMCalc: how many scans will we use for estimate
     :return: estimate of full-width-half-max in number of points
     """
+
+    # keep the values to be averaged over
     fwhm_arr = pl.array([])
 
     print "Estimating FWHM of profile MS"
     print "..."
     for i in range(numberOfScansForFWHMCalc):
+        # randomly select a scan to investigate.
         spec_index = random.randint(0,len(pl.squeeze(pl.asarray(int_matrix[0,:].todense())))-1)
         cur_spec = pl.squeeze(pl.asarray(int_matrix[:,spec_index].todense()))
         # could be 0 intensity points in good spectra becuase of the way the int_matrix is bui
         # lets work in units of scan number
         x = pl.arange(0,len(cur_spec ))
+        # Only going to be looking at the highest peak in each scan. Get the location of that peak.
         max_y = max(cur_spec )
-        scan_max_y = pl.where(cur_spec ==max_y )[0][0]
+        scan_max_y = pl.where(cur_spec == max_y)[0][0]
         popt, pcov = curve_fit(curves.gaussian,
                 x,
                 cur_spec,
@@ -117,6 +121,8 @@ def estimate_fwhm_ms(int_matrix,numberOfScansForFWHMCalc):
         #pl.plot(x[scan_max_y-20:scan_max_y+20],cur_spec[scan_max_y-20:scan_max_y+20],c='b',marker='o')
         #pl.show()
 
+        # with the right fit parameter you can determine the full width at half max.
+        # 2.35... is a known value to take this parameter and get the FWHM with.
         fwhm = 2.35482*popt[2]
         fwhm_arr = pl.append(fwhm_arr, fwhm )
 

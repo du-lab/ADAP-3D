@@ -93,7 +93,8 @@ class RequiredParameters:
     def determine_num_similar_slices_from_estimated_ms_full_width_half_max(self,fwhm):
         # don't round or anything -> want it to be automatically rounded down for now.
         # These numbers have come from the extensive testing I have done on the DCSM
-        # (standard mixture file) as well as the YP01 file (blood plasma).
+        # (standard mixture file) as well as the YP01 file (blood plasma). I'm not sure if
+        # they will generalize well to other data sets.
         self.peak_params.num_sim_either_side_threshold = fwhm/2
         self.peak_params.num_sim_total_threshold = 2*self.peak_params.num_sim_either_side_threshold
 

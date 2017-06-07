@@ -24,3 +24,5 @@ class DataPoint:
         self.mz_index = mz_index
         self.intensity = intensity
         self.mz = mz
+        self.been_removed=False
+

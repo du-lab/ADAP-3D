@@ -21,7 +21,7 @@
 import shutil
 import os
 import matplotlib
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 import pylab as pl
 
 ##### Plot styles#########
@@ -68,6 +68,17 @@ def cm2inch(value):
     return value/2.54
 
 def plot_these_peaks(allPeakObjects,int_matrix,rt,plotDirStr,listOfAllPeakMZAndRT,countRepeats):
+    """
+    Plots the input set of peaks (allPeakObjects) in the correct directory.
+    
+    :param allPeakObjects: List of peak objects (see datamodel for peak objects)
+    :param int_matrix: matrix of intensities. Rows are m/z, columns are RT.
+    :param rt: Array of retention times.
+    :param plotDirStr: Where are the plots going? Which directory?
+    :param listOfAllPeakMZAndRT: To keep track of which peaks have been plotted already.
+    :param countRepeats: Count of the number of repeats. Function will update the count.
+    :return: updated: listOfAllPeakMZAndRT and countRepeats.
+    """
 
     for k in range(len(allPeakObjects)):
         curPeak = allPeakObjects[k]

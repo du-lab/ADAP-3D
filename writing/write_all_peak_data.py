@@ -30,6 +30,18 @@ sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 from plotting import peak_plotting
 
 def write(result_dir_str,all_peak_objects,int_matrix,rt,scans):
+    """
+    Write the intensities, retention times, and scan numbers of each peak in a seperate file.
+    Might be useful for a variaty of things but this is done primaraly so the script 
+    jython_turn_results_into_mzmine2_xml.py can be run. This script makes a file that
+    MZmine 2 can read so the results can be imported into MZmine 2.
+    
+    :param result_dir_str: Where will the data be writen (directory)?
+    :param all_peak_objects: List of peak objects (see datamodel peak.py)
+    :param int_matrix: Matrix of intensities. Rows are m/z, columns are RT.
+    :param rt: Array of retention times.
+    :param scans: Array of the scan numbers.
+    """
 
     list_of_all_peak_mz_and_rt = []
 
@@ -43,25 +55,24 @@ def write(result_dir_str,all_peak_objects,int_matrix,rt,scans):
     for k in range(len(all_peak_objects)):
         cur_peak = all_peak_objects[k]
 
-        if peak_plotting.didWePlotThisPeakAlready(list_of_all_peak_mz_and_rt, cur_peak.mz, cur_peak.rt):
-            continue
+        if not peak_plotting.didWePlotThisPeakAlready(list_of_all_peak_mz_and_rt, cur_peak.mz, cur_peak.rt):
 
-        f = open(peakDataDirStr+"/"+str(count)+"_peak.dat", "w")
-        f.write("rt, intensity, scan\n")
+            f = open(peakDataDirStr+"/"+str(count)+"_peak.dat", "w")
+            f.write("rt, intensity, scan\n")
 
-        # get intensities
-        intensities = int_matrix[cur_peak.mzIndex, cur_peak.rtMinIndex:cur_peak.rtMaxIndex]
-        cur_rt = rt[cur_peak.rtMinIndex:cur_peak.rtMaxIndex]
-        cur_scans = scans[cur_peak.rtMinIndex:cur_peak.rtMaxIndex]
+            # get intensities
+            intensities = int_matrix[cur_peak.mzIndex, cur_peak.rtMinIndex:cur_peak.rtMaxIndex]
+            cur_rt = rt[cur_peak.rtMinIndex:cur_peak.rtMaxIndex]
+            cur_scans = scans[cur_peak.rtMinIndex:cur_peak.rtMaxIndex]
 
-        for i in range(len(cur_rt)):
-            f.write(str(cur_rt[i]) + ", " + str(intensities[i]) + ", " + str(cur_scans[i]) + "\n")
+            for i in range(len(cur_rt)):
+                f.write(str(cur_rt[i]) + ", " + str(intensities[i]) + ", " + str(cur_scans[i]) + "\n")
 
-        f.close()
+            f.close()
 
-        list_of_all_peak_mz_and_rt.append((cur_peak.mz, cur_peak.rt))
+            list_of_all_peak_mz_and_rt.append((cur_peak.mz, cur_peak.rt))
 
-        count+=1
+            count+=1
 
         if cur_peak.hasIsotope:
             for kappa in range(len(cur_peak.isotopeList)):

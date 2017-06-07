@@ -177,7 +177,7 @@ def main():
         for i in peak_shape_lines:
             cur_peak_shape_rt.append(float(i.split(',')[0]))
             cur_peak_shape_intensity.append(float(i.split(',')[1]))
-            cur_peak_shape_scans.append(int(i.split(',')[2]))
+            cur_peak_shape_scans.append(int(i.split(',')[2])+1)
             if float(i.split(',')[1])>cur_peak_best_inten:
                 cur_peak_best_scan = int(i.split(',')[2])
                 cur_peak_best_inten = float(i.split(',')[1])
