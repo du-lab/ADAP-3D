@@ -1,0 +1,153 @@
+
+
+##########################################################
+####### DCSM why we miss ##################################
+##########################################################
+
+    tmp_mz_of_peak = 277.039958443 # 5.0 6.5 rt
+    tmp_mz_of_peak = 164.679730907 # 5.5 6.5 rt
+    tmp_mz_of_peak = 213.113775355 # 5.0 6.5 rt
+    tmp_mz_of_peak = 376.533030412 # 6.25 8.0 rt
+    tmp_mz_of_peak = 178.127412854 # 10.75 12.25 rt
+    tmp_mz_of_peak = 178.127412854 # 10.75 12.25 rt
+    tmp_mz_of_peak = 301.283721924 # 11.0 12.5 rt
+    tmp_mz_of_peak = 505.330810547 # 11.75 13.25 rt
+    tmp_mz_of_peak = 149.131795286 # 10.75 12.25 rt
+    tmp_mz_of_peak = 502.345916748 # 14.25 15.75 rt
+    tmp_mz_of_peak = 235.168167114 # 12.5 14.00 rt
+    tmp_mz_of_peak = 212.006378174 # 20.25 21.75 rt
+
+
+##########################################################
+################## YP01 Compounds ########################
+##########################################################
+
+    #tmp_mz_of_peak = 90.055825 # rt range 0.5 - 1.5 Alanine
+    #tmp_mz_of_peak = 114.066825 # rt range 0.5 - 1.5 Creatine
+    #tmp_mz_of_peak = 122.0215 # rt range 0.5 - 1.5 Cysteine
+    # Glucose
+    #tmp_mz_of_peak = 181.070825 # rt range 0.5 - 1.5 Glucose
+    #tmp_mz_of_peak = 182.0746
+    #tmp_mz_of_peak = 156.070525 # rt range 0.0 - 1.5 Histidine
+    # Homocysteine
+    #tmp_mz_of_peak = 136.0474 # rt range 0.5 - 1.5
+    #tmp_mz_of_peak = 137.0506
+    #tmp_mz_of_peak = 132.1007 # rt range 0.5 - 1.5 Isolucine
+    #tmp_mz_of_peak = 147.1119 # rt range 0.0 - 2.0 Lysine
+    #tmp_mz_of_peak = 150.058825 # rt range 0.5 - 1.5 Methionine
+    # Phenylalnine
+    #tmp_mz_of_peak = 166.0848 # rt range 0.5 - 1.5 Phenylalnine
+    #tmp_mz_of_peak = 167.0882
+    #tmp_mz_of_peak = 168.0916
+    #tmp_mz_of_peak = 116.0696 # rt range 0.5 - 1.5 Proline
+    #tmp_mz_of_peak = 106.0489 # rt range 0.5 - 1.5 Serine
+    #tmp_mz_of_peak = 120.0646 # rt range 0.5 - 1.5 Threonine
+    #tmp_mz_of_peak = 182.0793 # rt range 0.5 - 1.5 Tyrosine
+    # Uric Acid
+    #tmp_mz_of_peak = 169.0342 # rt range 0.5 - 1.5 Uric Acid
+    #tmp_mz_of_peak = 170.0377
+    #tmp_mz_of_peak = 171.0382
+    # Valine
+    #tmp_mz_of_peak = 118.0851 # rt range 0.5 - 1.5 Valine
+    #tmp_mz_of_peak = 119.0883
+    #tmp_mz_of_peak = 120.0895
+
+##########################################################
+################## DCSM Compounds ########################
+##########################################################
+
+    ## Compound Bicine (c1)
+    #tmp_mz_of_peak = 164.0909 # 0.65
+    #tmp_mz_of_peak = 165.0938 # 0.66
+    #tmp_mz_of_peak = 166.0947 # 0.66
+    ## Compound N-Acetylglutamine (c2) 0.5 1.6
+    #tmp_mz_of_peak = 189.0853 # 1.17
+    #tmp_mz_of_peak = 190.0889 # 1.16
+    ## Compound N-(Hydroxymethyl)nicotinamide (c3)
+    #tmp_mz_of_peak = 153.0649 # 1.94
+    #tmp_mz_of_peak = 154.0680 # 1.94
+    #tmp_mz_of_peak = 155.0690 # 1.91 (Just hardly there)
+    ## Compound Nicotinuric acid (c4)
+    #tmp_mz_of_peak = 181.0596 # 2.31
+    #tmp_mz_of_peak = 182.0630 # 2.31
+    #tmp_mz_of_peak = 183.0646 # 2.31
+    ## Compound 6-Hydroxynicotinic acid (c5)
+    #tmp_mz_of_peak = 140.0332 # 2.65
+    #tmp_mz_of_peak = 141.0367 # 2.65
+    #tmp_mz_of_peak = 142.0375 # 2.65
+    ## Compound 6-O-Methylguanine (c6)
+    #tmp_mz_of_peak = 166.0712 # 2.94
+    #tmp_mz_of_peak = 167.0744 # 2.94
+    #tmp_mz_of_peak = 168.0753 # 2.94
+    ## Compound 3-Chloro-L-tyrosine (c7)
+    #tmp_mz_of_peak = 216.0411 # 3.25
+    #tmp_mz_of_peak = 217.0441 # 3.25
+    #tmp_mz_of_peak = 218.0376 # 3.25
+    #tmp_mz_of_peak = 219.0410 # 3.25
+    #tmp_mz_of_peak = 220.0422 # 3.25
+    ## Compound Acetazolamide (c8)
+    #tmp_mz_of_peak = 222.9946 # 3.90
+    #tmp_mz_of_peak = 223.9977 # 3.90
+    #tmp_mz_of_peak = 224.9897 # 3.90
+    #tmp_mz_of_peak = 225.9934 # 3.90
+    ## Compound Pantothenic acid (c9)
+    #tmp_mz_of_peak = 220.1168 # 4.00
+    #tmp_mz_of_peak = 221.1198 # 4.00
+    #tmp_mz_of_peak = 222.1208 # 4.00
+    ## Compound L-Tryptophan (c10)
+    #tmp_mz_of_peak = 205.0958 # 4.26
+    #tmp_mz_of_peak = 206.0995 # 4.26
+    #tmp_mz_of_peak = 207.1026 # 4.26
+    ## Compound 4-Acetamidobenzaldehyde (c11)
+    #tmp_mz_of_peak = 164.0698 # 6.08
+    #tmp_mz_of_peak = 165.0730 # 6.08
+    #tmp_mz_of_peak = 166.0760 # 6.10
+    ## Compound Glafenine (c12(1))
+    #tmp_mz_of_peak = 373.0937 # 6.90
+    #tmp_mz_of_peak = 374.0965 # 6.90
+    #tmp_mz_of_peak = 375.0895 # 6.90
+    #tmp_mz_of_peak = 376.0934 # 6.90
+    #tmp_mz_of_peak = 377.0972 # 6.90
+    ## Compound Glafenine (c12(2))
+    #tmp_mz_of_peak = 373.0937 # 7.15
+    #tmp_mz_of_peak = 374.0965 # 7.15
+    #tmp_mz_of_peak = 375.0909 # 7.15
+    #tmp_mz_of_peak = 376.0934 # 7.15
+    #tmp_mz_of_peak = 377.0959 # 7.15
+    ## Compound 3-(4-Fluorobenzoyl)propionic acid (c13)
+    #tmp_mz_of_peak = 197.0600 # 7.97
+    #tmp_mz_of_peak = 198.0630 # 7.98
+    #tmp_mz_of_peak = 199.0653 # 7.97
+    ## Compound 3-(2-Thienyl)acrylic acid (cis or trans) (c14)
+    #tmp_mz_of_peak = 155.0153 # 8.40
+    #tmp_mz_of_peak = 156.0186 # 8.41
+    ## Compound 2,5-Dimethoxycinnamic acid (cis or trans) (c15)
+    #tmp_mz_of_peak = 209.0796 # 9.68
+    #tmp_mz_of_peak = 210.0833 # 9.68
+    ## Compound Bufexamac (c16)
+    #tmp_mz_of_peak = 224.1270 # 9.88
+    #tmp_mz_of_peak = 225.1300 # 9.89
+    #tmp_mz_of_peak = 226.1334 # 9.89
+    ## Compound 2-Amino-5-nitrobenzophenone (c17)
+    #tmp_mz_of_peak = 243.0756 # 10.83
+    #tmp_mz_of_peak = 244.0782 # 10.84
+    #tmp_mz_of_peak = 245.0813 # 10.84
+    ## Compound Probenecid (c18)
+    #tmp_mz_of_peak = 286.1095 # 11.18
+    #tmp_mz_of_peak = 287.1124 # 11.18
+    #tmp_mz_of_peak = 288.1049 # 11.18
+    #tmp_mz_of_peak = 289.1081 # 11.18
+    ## Compound Dodecanedioic acid (c19)
+    #tmp_mz_of_peak = 231.1580 # 11.54
+    #tmp_mz_of_peak = 232.1612 # 11.55
+    ## Compound 1,11-Undecanedicarboxylic acid (c20(1))
+    #tmp_mz_of_peak = 245.1741 # 11.56
+    #tmp_mz_of_peak = 246.1773 # 11.56
+    ## Compound 1,11-Undecanedicarboxylic acid (c20(2))
+    #tmp_mz_of_peak = 245.1741 # 12.28
+    #tmp_mz_of_peak = 246.1773 # 12.28
+    ## Compound DL-threo-1-Phenyl-2-palmitoylamino-3 -morpholino-1-propanol (c22)
+    #tmp_mz_of_peak = 475.3881 # 14.25
+    #tmp_mz_of_peak = 476.3904 # 14.25
+    #tmp_mz_of_peak = 477.3938 # 14.25
+    #tmp_mz_of_peak = 478.3965 # 14.25
