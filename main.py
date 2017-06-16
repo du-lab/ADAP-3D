@@ -930,7 +930,7 @@ def load_data_points_in_lists(dfr,absolute_intensity_thresh,mz_upper_cutoff):
     count = 0
     mz,inten = dfr.get_next_scan_mzvals_intensities()
     if not USE_SMALL_TEST_WINDOW:
-        while mz!=None:
+        while mz is not None:
         #while (count<100):
             # line below is to skip chemical noise in data Change back to above line HERE
             #if (count>200)and(count<1200):
@@ -955,7 +955,7 @@ def load_data_points_in_lists(dfr,absolute_intensity_thresh,mz_upper_cutoff):
         #dfr.closeWriter()
     else:
         scan_index_count=0
-        while mz!=None:
+        while mz is not None:
         #while (count<100):
             # line below is to skip chemical noise in data Change back to aboveline HERE
             #if (count>200)and(count<1200):
