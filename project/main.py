@@ -1802,6 +1802,8 @@ if __name__ == "__main__":
 
 
 
-    # %run -d main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/DC_010814_StandardsMixTest1_34StandardMix_01.mzXML --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
+# %run -d main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/DC_010814_StandardsMixTest1_34StandardMix_01.mzXML --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
 
-    # python main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/Ppyralis_spermatophore_pos_20uL.mzXML --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
+# python main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/Ppyralis_spermatophore_pos_20uL.mzXML --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
+
+# python main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/test_out.CDF --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
