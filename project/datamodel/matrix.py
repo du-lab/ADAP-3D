@@ -3,6 +3,7 @@ import efficient_find_next_max
 import pylab as pl
 import data_point
 import sys
+import numpy as np
 
 class Matrix():
 
@@ -15,7 +16,7 @@ class Matrix():
         self.get_unique_mz_values()
 
         self.int_matrix = dok_matrix((len(self.unique_mz_list), len(self.mz_by_scan)), dtype=pl.float32)
-        self.to_mod_int_matrix = dok_matrix((len(self.unique_mz_list), len(self.mz_by_scan)), dtype=pl.float32)
+#        self.to_mod_int_matrix = dok_matrix((len(self.unique_mz_list), len(self.mz_by_scan)), dtype=pl.float32)
 
         self.create_matrix()
 
@@ -46,7 +47,7 @@ class Matrix():
                 if inten[i] < absolute_intensity_thresh:
                     continue
                 cur_dp = data_point.DataPoint(self.count, i, mz[i], inten[i])
-                self.list_all_data_points.append(cur_dp)
+                list_all_data_points.append(cur_dp)
 
             mz, inten = dfr.get_next_scan_mzvals_intensities()
 
@@ -106,6 +107,7 @@ class Matrix():
         for i in self.list_all_data_points:
             if count_2 % (c / 10) == 0:
                 print "%.1f percent" % (float(count_2) / float(c) * 100.0)
+
             cur_mz = i.mz
             cur_mz = int(cur_mz * self.parameters['mz_factor'])
             cur_scan_index = i.scan_index
@@ -115,9 +117,50 @@ class Matrix():
             i.mz_index = cur_mz_index
 
             self.int_matrix[cur_mz_index, cur_scan_index] = cur_intensity
-            self.to_mod_int_matrix[cur_mz_index, cur_scan_index] = cur_intensity
+#            self.to_mod_int_matrix[cur_mz_index, cur_scan_index] = cur_intensity
 
             count_2 += 1
 
     def find_max(self):
-        self.mz_index, self.scan_index = self.efficient_next_max.find_max()
+
+        return self.efficient_next_max.find_max()
+
+    def index_to_mz(self, index):
+
+        return self.unique_mz_list[index]
+
+    def construct_EIC(self, int_mz_value, first_scan_boundary, second_scan_boundary, parameters):
+
+        mz_int_tolerance = parameters['mz_factor'] * parameters['mz_tolerance']
+
+        mz_tolerance_index_list = []
+
+        first_int_mz_boundary = int_mz_value - mz_int_tolerance
+        second_int_mz_boundary = int_mz_value + mz_int_tolerance
+
+        for unique_mz in self.unique_mz_list:
+            if unique_mz > first_int_mz_boundary and unique_mz < second_int_mz_boundary:
+                mz_tolerance_index_list.append(self.mz_to_index_map[unique_mz])
+
+        mz_start = max(0, min(mz_tolerance_index_list))
+        mz_end = min(self.int_matrix.shape[0], max(mz_tolerance_index_list))
+
+        first_scan_boundary = max(0, first_scan_boundary)
+        second_scan_boundary = min(self.int_matrix.shape[1], second_scan_boundary)
+
+        inten_array = self.int_matrix[mz_start:mz_end + 1, first_scan_boundary:second_scan_boundary + 1].toarray().max(axis=0)
+        rt_array = []
+
+        for scan in range(first_scan_boundary, second_scan_boundary):
+            rt = self.rt[scan]
+            rt_array.append(rt)
+
+        return np.array(rt_array), inten_array
+
+    def remove_cur_max(self, mz_index, scan_index, first_scan_boundary, second_scan_boundary):
+
+        first_scan_boundary = max(0, first_scan_boundary)
+        second_scan_boundary = min(self.int_matrix.shape[1], second_scan_boundary)
+
+        self.int_matrix[mz_index, scan_index] = 0
+        efficient_find_next_max.EfficientNextMax.done_with_rows_cols(self.efficient_next_max, mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary + 1)
