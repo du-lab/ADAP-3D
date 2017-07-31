@@ -65,7 +65,7 @@ def get_similarity(intensity1,intensity2):
     This similarity measure looks at the area between two normalized curves.
     :param intensity1: Curve 1
     :param intensity2: Curve 2
-    :return: Similarity will always be a value between 0(high similarity) and 1(low sim).
+    :return: Similarity will always be a value between 1(high similarity) and 0(low sim).
     """
     param_c=0.2
     param_b=pl.exp(-1.0/param_c)
@@ -76,6 +76,10 @@ def get_similarity(intensity1,intensity2):
     normed1 = intensity1/area
 
     area2 = integrate.trapz(intensity2,x=x)
+
+    if area2 == 0.0:
+        return -1
+
     normed2 = intensity2/area2
 
     diff_area = integrate.trapz(abs(normed1-normed2),x=x)
