@@ -131,20 +131,27 @@ class Matrix():
 
         mz_int_tolerance = self.parameters['mz_factor'] * self.parameters['mz_tolerance']
 
-        mz_tolerance_index_list = []
-
         first_int_mz_boundary = int_mz_value - mz_int_tolerance
         second_int_mz_boundary = int_mz_value + mz_int_tolerance
 
-        for unique_mz in self.unique_mz_list:
-            if unique_mz > first_int_mz_boundary and unique_mz < second_int_mz_boundary:
-                mz_tolerance_index_list.append(self.mz_to_index_map[unique_mz])
+        mz_start = None
+        mz_end = None
+        mz_start_found = False
 
-        if len(mz_tolerance_index_list) == 0:
+        for unique_mz in self.unique_mz_list:
+            if unique_mz < second_int_mz_boundary:
+                if unique_mz > first_int_mz_boundary:
+                    if not mz_start_found:
+                        mz_start = self.mz_to_index_map[unique_mz]
+                        mz_start_found = True
+                    mz_end = self.mz_to_index_map[unique_mz]
+                else:
+                    continue
+            else:
+                break
+
+        if mz_start is None and mz_end is None:
             return [], [], -1, -1
-        else:
-            mz_start = max(0, min(mz_tolerance_index_list))
-            mz_end = min(self.int_matrix.shape[0], max(mz_tolerance_index_list))
 
         inten_array = self.int_matrix[mz_start:mz_end + 1, first_scan_boundary:second_scan_boundary + 1].toarray().max(axis=0)
         rt_array = []
@@ -172,13 +179,17 @@ class Matrix():
 
             min_mz_index = None
             max_mz_index = None
+            min_mz_found = False
 
             for unique_mz in self.unique_mz_list:
-                if unique_mz > first_int_inbetween_mz_value_boundary:
-                    min_mz_index = self.mz_to_index_map[unique_mz]
-                    first_int_inbetween_mz_value_boundary = np.inf
                 if unique_mz < second_int_inbetween_mz_value_boundary:
-                    max_mz_index = self.mz_to_index_map[unique_mz]
+                    if unique_mz > first_int_inbetween_mz_value_boundary:
+                        if not min_mz_found:
+                            min_mz_index = self.mz_to_index_map[unique_mz]
+                            min_mz_found = True
+                        max_mz_index = self.mz_to_index_map[unique_mz]
+                    else:
+                        continue
                 else:
                     break
 

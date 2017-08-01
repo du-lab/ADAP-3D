@@ -6,38 +6,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 import os
+import time
 
 
-def plot_chromatogram_2(bounded_rt_array, bounded_inten_array, found_rt_array_1, found_inten_array_1, found_rt_array_2, found_inten_array_2, name, title, rt_of_max_inten):
-
-    fig_combined = plt.figure()
-    ax_combined = fig_combined.add_subplot(111)
-
-    rt_array = [bounded_rt_array, found_rt_array_1, found_rt_array_2]
-    inten_array = [bounded_inten_array, found_inten_array_1, found_inten_array_2]
-
-    for index, array in enumerate(rt_array):
-        ax_combined.plot(rt_array[index], inten_array[index])
-
-    fig_combined.suptitle(title + ' | ' + str(rt_of_max_inten))
-    ax_combined.set_xlabel("Retention Time")
-    ax_combined.set_ylabel("Intensity")
-    plt.savefig('comparing_peaks_results/' + name + '.pdf')
-    plt.close()
-
-
-def plot_chromatogram(bounded_rt_array, bounded_inten_array, found_rt_array, found_inten_array, name, title, rt_of_max_inten):
+def plot_chromatogram(rt_array_list, inten_array_list, name, title, rt_of_max_inten):
 
     fig_combined = plt.figure()
     ax_combined = fig_combined.add_subplot(111)
 
-    rt_array = [bounded_rt_array, found_rt_array]
-    inten_array = [bounded_inten_array, found_inten_array]
+    for index, array in enumerate(rt_array_list):
+        ax_combined.plot(rt_array_list[index], inten_array_list[index])
 
-    for index, array in enumerate(rt_array):
-        ax_combined.plot(rt_array[index], inten_array[index])
-
-    fig_combined.suptitle(title + ' | ' + str(rt_of_max_inten))
+    fig_combined.suptitle(title + ' | RT: ' + str(rt_of_max_inten))
     ax_combined.set_xlabel("Retention Time")
     ax_combined.set_ylabel("Intensity")
     plt.savefig('comparing_peaks_results/' + name + '.pdf')
@@ -74,6 +54,9 @@ def find_second_peak_and_remove_all_values(mz_value, first_scan_boundary, second
 
     for mz_scale in range(parameters['peak_range'][0], parameters['peak_range'][1], -1):
 
+        name = str(count)
+        title = 'Original: ' + str(mz_value) + ' | Expected: '
+
         expected_value_1 = mz_value - (mz_scale * 1.0033)
         expected_value_2 = mz_value + (mz_scale * 1.0033)
 
@@ -97,9 +80,13 @@ def find_second_peak_and_remove_all_values(mz_value, first_scan_boundary, second
             sim = curve_tools.get_similarity(bounded_inten_array, found_inten_array_2)
             if sim > parameters['peak_similarity_threshold']:
                 matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_2, first_scan_boundary, second_scan_boundary, mz_scale)
-                name = str(count)
-                title = 'Original: ' + str(mz_value) + ' | Expected: ' + str(expected_value_2)
-                plot_chromatogram(bounded_rt_array, bounded_inten_array, found_rt_array_2, found_inten_array_2, name, title, rt_of_max_inten)
+
+                title = title + str(expected_value_2)
+
+                inten_array_list = [bounded_inten_array, found_inten_array_2]
+                rt_array_list = [bounded_rt_array, found_rt_array_2]
+                plot_chromatogram(rt_array_list, inten_array_list, name, title, rt_of_max_inten)
+
                 break
 
         elif len(found_rt_array_2) == 0:
@@ -108,9 +95,13 @@ def find_second_peak_and_remove_all_values(mz_value, first_scan_boundary, second
             sim = curve_tools.get_similarity(bounded_inten_array, found_inten_array_1)
             if sim > parameters['peak_similarity_threshold']:
                 matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_1, first_scan_boundary, second_scan_boundary, mz_scale)
-                name = str(count)
-                title = 'Original: ' + str(mz_value) + ' | Expected: ' + str(expected_value_1)
-                plot_chromatogram(bounded_rt_array, bounded_inten_array, found_rt_array_1, found_inten_array_1, name, title, rt_of_max_inten)
+
+                title = title + str(expected_value_1)
+
+                inten_array_list = [bounded_inten_array, found_inten_array_1]
+                rt_array_list = [bounded_rt_array, found_rt_array_1]
+                plot_chromatogram(rt_array_list, inten_array_list, name, title, rt_of_max_inten)
+
                 break
 
         else:
@@ -123,17 +114,25 @@ def find_second_peak_and_remove_all_values(mz_value, first_scan_boundary, second
             if sim_1 > sim_2:
                 if sim_1 > parameters['peak_similarity_threshold']:
                     matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_1, first_scan_boundary, second_scan_boundary, mz_scale)
-                    name = str(count)
-                    title = 'Original: ' + str(mz_value) + ' | Expected: ' + str(expected_value_1)
-                    plot_chromatogram(bounded_rt_array, bounded_inten_array, found_rt_array_1, found_inten_array_1, name, title, rt_of_max_inten)
+
+                    title = title + str(expected_value_1)
+
+                    inten_array_list = [bounded_inten_array, found_inten_array_1]
+                    rt_array_list = [bounded_rt_array, found_rt_array_1]
+                    plot_chromatogram(rt_array_list, inten_array_list, name, title, rt_of_max_inten)
+
                     break
 
             elif sim_2 > sim_1:
                 if sim_2 > parameters['peak_similarity_threshold']:
                     matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_2, first_scan_boundary,  second_scan_boundary, mz_scale)
-                    name = str(count)
-                    title = 'Original: ' + str(mz_value) + ' | Expected: ' + str(expected_value_2)
-                    plot_chromatogram(bounded_rt_array, bounded_inten_array, found_rt_array_2, found_inten_array_2, name, title, rt_of_max_inten)
+
+                    title = title + str(expected_value_2)
+
+                    inten_array_list = [bounded_inten_array, found_inten_array_2]
+                    rt_array_list = [bounded_rt_array, found_rt_array_2]
+                    plot_chromatogram(rt_array_list, inten_array_list, name, title, rt_of_max_inten)
+
                     break
 
             else:
@@ -148,13 +147,20 @@ def find_second_peak_and_remove_all_values(mz_value, first_scan_boundary, second
 
                     matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_1, first_scan_boundary, second_scan_boundary, mz_scale)
                     matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_2, first_scan_boundary, second_scan_boundary, mz_scale)
-                    name = str(count)
-                    title = 'Original: ' + str(mz_value) + ' | Expected: First - ' + str(expected_value_1) + ', Second -' + str(expected_value_2)
-                    plot_chromatogram_2(bounded_rt_array, bounded_inten_array, found_rt_array_1, found_inten_array_1, found_rt_array_2, found_inten_array_2, name, title, rt_of_max_inten)
+
+                    title = title + 'First - ' + str(expected_value_1) + ', Second -' + str(expected_value_2)
+
+                    inten_array_list = [bounded_inten_array, found_inten_array_1, found_inten_array_2]
+                    rt_array_list = [bounded_rt_array, found_rt_array_1, found_rt_array_2]
+
+                    plot_chromatogram(rt_array_list, inten_array_list, name, title, rt_of_max_inten)
+
                     break
 
 
 def main():
+
+    time_1 = time.time()
 
     parameters = {'absolute_intensity_thresh': 100.0,
                   'mz_factor': 10000.0,
@@ -162,7 +168,7 @@ def main():
                   'scan_boundary': 20,
                   'mz_tolerance': 0.001,
                   'peak_intensity_threshold': 5000,
-                  'gaussian_error_tolerance': 0.1,
+                  'gaussian_error_tolerance': 0.02,
                   'gaussian_intensity_percentage': 0.05,
                   'low_boundary_range': 0.02,
                   'high_boundary_range': 0.1,
@@ -204,9 +210,11 @@ def main():
                 rt_array, inten_array, mz_start, mz_end = matrix_variables.construct_EIC(int_mz_value, first_scan_boundary, second_scan_boundary)
 
                 if len(rt_array) == 0:
-                        continue
+                    matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
+                    continue
 
                 if sum(inten_array) == 0.0:
+                    matrix_variables.remove_cur_max(mz_start, mz_end, first_scan_boundary, second_scan_boundary)
                     continue
 
                 try:
@@ -289,7 +297,9 @@ def main():
             else:
                 continue
 
-        print count
+    time_2 = time.time()
+
+    print time_2 - time_1
 
 
 
