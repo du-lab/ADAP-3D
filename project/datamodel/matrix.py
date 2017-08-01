@@ -192,7 +192,7 @@ class Matrix():
         if mz_value > expected_mz_value:
             mz_range = range(0, mz_scale)
 
-            self.find_inbetween_mz_values_and_remove(mz_value, mz_range, first_scan_boundary, second_scan_boundary)
+            self.find_inbetween_mz_values_and_remove(expected_mz_value, mz_range, first_scan_boundary, second_scan_boundary)
 
 
         elif mz_value < expected_mz_value:
