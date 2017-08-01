@@ -8,6 +8,8 @@ import math
 import os
 import time
 
+path = '/Users/jasonzhou/Desktop/Working Folder/'
+mz_constant_diff = 1.00335
 
 def plot_chromatogram(rt_array_list, inten_array_list, name, title, rt_of_max_inten):
 
@@ -20,7 +22,7 @@ def plot_chromatogram(rt_array_list, inten_array_list, name, title, rt_of_max_in
     fig_combined.suptitle(title + ' | RT: ' + str(rt_of_max_inten))
     ax_combined.set_xlabel("Retention Time")
     ax_combined.set_ylabel("Intensity")
-    plt.savefig('comparing_peaks_results/' + name + '.pdf')
+    plt.savefig(path + 'comparing_peaks_results/' + name + '.pdf')
     plt.close()
 
 
@@ -50,15 +52,24 @@ def calc_width_of_gaussian(popt, parameters):
     return rt_boundaries, boundary_width
 
 
-def find_second_peak_and_remove_all_values(mz_value, first_scan_boundary, second_scan_boundary, bounded_rt_array, bounded_inten_array, matrix_variables, rt_of_max_inten, parameters, count):
+def find_second_peak_and_remove_all_values(mz_value,
+                                           first_scan_boundary,
+                                           second_scan_boundary,
+                                           scan_index,
+                                           bounded_rt_array,
+                                           bounded_inten_array,
+                                           matrix_variables,
+                                           rt_of_max_inten,
+                                           parameters,
+                                           count):
 
     for mz_scale in range(parameters['peak_range'][0], parameters['peak_range'][1], -1):
 
         name = str(count)
         title = 'Original: ' + str(mz_value) + ' | Expected: '
 
-        expected_value_1 = mz_value - (mz_scale * 1.0033)
-        expected_value_2 = mz_value + (mz_scale * 1.0033)
+        expected_value_1 = mz_value - (mz_scale * mz_constant_diff)
+        expected_value_2 = mz_value + (mz_scale * mz_constant_diff)
 
         int_expected_value_1 = expected_value_1 * parameters['mz_factor']
         int_expected_value_2 = expected_value_2 * parameters['mz_factor']
@@ -79,7 +90,10 @@ def find_second_peak_and_remove_all_values(mz_value, first_scan_boundary, second
                 continue
             sim = curve_tools.get_similarity(bounded_inten_array, found_inten_array_2)
             if sim > parameters['peak_similarity_threshold']:
-                matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_2, first_scan_boundary, second_scan_boundary, mz_scale)
+                passes_found_point_threshold = matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_2, first_scan_boundary, second_scan_boundary, scan_index, mz_scale)
+
+                if not passes_found_point_threshold:
+                    break
 
                 title = title + str(expected_value_2)
 
@@ -94,7 +108,10 @@ def find_second_peak_and_remove_all_values(mz_value, first_scan_boundary, second
                 continue
             sim = curve_tools.get_similarity(bounded_inten_array, found_inten_array_1)
             if sim > parameters['peak_similarity_threshold']:
-                matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_1, first_scan_boundary, second_scan_boundary, mz_scale)
+                passes_found_point_threshold = matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_1, first_scan_boundary, second_scan_boundary, scan_index, mz_scale)
+
+                if not passes_found_point_threshold:
+                    break
 
                 title = title + str(expected_value_1)
 
@@ -113,7 +130,10 @@ def find_second_peak_and_remove_all_values(mz_value, first_scan_boundary, second
 
             if sim_1 > sim_2:
                 if sim_1 > parameters['peak_similarity_threshold']:
-                    matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_1, first_scan_boundary, second_scan_boundary, mz_scale)
+                    passes_found_point_threshold = matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_1, first_scan_boundary, second_scan_boundary, scan_index, mz_scale)
+
+                    if not passes_found_point_threshold:
+                        break
 
                     title = title + str(expected_value_1)
 
@@ -125,7 +145,10 @@ def find_second_peak_and_remove_all_values(mz_value, first_scan_boundary, second
 
             elif sim_2 > sim_1:
                 if sim_2 > parameters['peak_similarity_threshold']:
-                    matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_2, first_scan_boundary,  second_scan_boundary, mz_scale)
+                    passes_found_point_threshold = matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_2, first_scan_boundary,  second_scan_boundary, scan_index, mz_scale)
+
+                    if not passes_found_point_threshold:
+                        break
 
                     title = title + str(expected_value_2)
 
@@ -145,8 +168,11 @@ def find_second_peak_and_remove_all_values(mz_value, first_scan_boundary, second
                     print expected_value_1
                     print expected_value_2
 
-                    matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_1, first_scan_boundary, second_scan_boundary, mz_scale)
-                    matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_2, first_scan_boundary, second_scan_boundary, mz_scale)
+                    passes_found_point_threshold_1 = matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_1, first_scan_boundary, second_scan_boundary, scan_index, mz_scale)
+                    passes_found_point_threshold_2 = matrix_variables.remove_inbetween_mz_values(mz_value, expected_value_2, first_scan_boundary, second_scan_boundary, scan_index, mz_scale)
+
+                    if not passes_found_point_threshold_1 or not passes_found_point_threshold_2:
+                        break
 
                     title = title + 'First - ' + str(expected_value_1) + ', Second -' + str(expected_value_2)
 
@@ -172,9 +198,10 @@ def main():
                   'gaussian_intensity_percentage': 0.05,
                   'low_boundary_range': 0.02,
                   'high_boundary_range': 0.1,
-                  'peak_similarity_threshold': 0.5}
+                  'peak_similarity_threshold': 0.5,
+                  'found_values_between_peaks_threshold': 0.66}
 
-    input_dir = '/Users/jasonzhou/Desktop/adap-3d/project/Data/'
+    input_dir = path + 'Data/'
 
     for file_name in os.listdir(input_dir):
         if file_name == '.DS_Store':
@@ -182,7 +209,7 @@ def main():
 
         df_str = input_dir + file_name
         dfr = easyio.DataFileReader(df_str, False)
-        matrix_variables = matrix.Matrix(dfr, parameters)
+        matrix_variables = matrix.Matrix(dfr, parameters, mz_constant_diff)
 
         count = 0
 
@@ -280,6 +307,7 @@ def main():
                     find_second_peak_and_remove_all_values(mz_value,
                                                            first_scan_boundary,
                                                            second_scan_boundary,
+                                                           scan_index,
                                                            bounded_rt_array,
                                                            bounded_inten_array,
                                                            matrix_variables,

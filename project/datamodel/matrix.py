@@ -7,9 +7,11 @@ import numpy as np
 
 class Matrix():
 
-    def __init__(self, dfr, parameters):
+    def __init__(self, dfr, parameters, mz_constant_diff):
 
         self.parameters = parameters
+
+        self.mz_constant_diff = mz_constant_diff
 
         self.list_all_data_points = self.load_data_points_in_list(dfr)
 
@@ -166,13 +168,15 @@ class Matrix():
 
         efficient_find_next_max.EfficientNextMax.done_with_rows_cols(self.efficient_next_max, mz_start, mz_end + 1, first_scan_boundary, second_scan_boundary + 1)
 
-    def find_inbetween_mz_values_and_remove(self, mz_value, mz_range, first_scan_boundary, second_scan_boundary):
+    def find_inbetween_mz_values_and_remove(self, mz_value, mz_range, first_scan_boundary, second_scan_boundary, scan_index):
+
+        found_points = 0
 
         for scalar in mz_range:
 
             mz_int_tolerance = self.parameters['mz_factor'] * self.parameters['mz_tolerance']
 
-            inbetween_mz_value = mz_value + (scalar * 1.0033)
+            inbetween_mz_value = mz_value + (scalar * self.mz_constant_diff)
             int_inbetween_mz_value = inbetween_mz_value * self.parameters['mz_factor']
             first_int_inbetween_mz_value_boundary = int_inbetween_mz_value - mz_int_tolerance
             second_int_inbetween_mz_value_boundary = int_inbetween_mz_value + mz_int_tolerance
@@ -196,20 +200,39 @@ class Matrix():
             if min_mz_index is None and max_mz_index is None:
                 continue
 
+            inten_array = self.int_matrix[min_mz_index:max_mz_index + 1, scan_index:scan_index + 1].toarray().max(axis=0)
+            if max(inten_array) == 0:
+                self.remove_cur_max(min_mz_index, max_mz_index + 1, first_scan_boundary, second_scan_boundary)
+                continue
+
+            found_points = found_points + 1
+
             self.remove_cur_max(min_mz_index, max_mz_index + 1, first_scan_boundary, second_scan_boundary)
 
-    def remove_inbetween_mz_values(self, mz_value, expected_mz_value, first_scan_boundary, second_scan_boundary, mz_scale):
+        return found_points
+
+    def remove_inbetween_mz_values(self, mz_value, expected_mz_value, first_scan_boundary, second_scan_boundary, scan_index, mz_scale):
 
         if mz_value > expected_mz_value:
             mz_range = range(0, mz_scale)
 
-            self.find_inbetween_mz_values_and_remove(expected_mz_value, mz_range, first_scan_boundary, second_scan_boundary)
+            found_point_value = self.find_inbetween_mz_values_and_remove(expected_mz_value, mz_range, first_scan_boundary, second_scan_boundary, scan_index)
+
+            if (found_point_value / mz_scale) < self.parameters['found_values_between_peaks_threshold']:
+                return False
+            else:
+                return True
 
 
         elif mz_value < expected_mz_value:
             mz_range = range(mz_scale, 0, -1)
 
-            self.find_inbetween_mz_values_and_remove(mz_value, mz_range, first_scan_boundary, second_scan_boundary)
+            found_point_value = self.find_inbetween_mz_values_and_remove(mz_value, mz_range, first_scan_boundary, second_scan_boundary, scan_index)
+
+            if (found_point_value / mz_scale) < self.parameters['found_values_between_peaks_threshold']:
+                return False
+            else:
+                return True
 
         else:
             print "This shouldn't happen"
