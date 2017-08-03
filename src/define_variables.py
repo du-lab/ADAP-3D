@@ -1,4 +1,4 @@
-def define_variables():
+def get_parameters():
     PLOT_ALL_PEAKS = True
 
     VERBOSE = False
@@ -45,3 +45,19 @@ def define_variables():
 
     RESULT_LIST = []
     ISOTOPE_RESULT_PEAK_LIST = []
+
+    all_parameters = {}
+
+    all_parameters['PLOT_ALL_PEAKS'] = PLOT_ALL_PEAKS
+    all_parameters['VERBOSE'] = VERBOSE
+    all_parameters['USE_HARD_CODED_DETECTION_PARAMETERS'] = USE_HARD_CODED_DETECTION_PARAMETERS
+    all_parameters['USE_ISOTOPE_PARAMETERS_FOR_ALL'] = USE_ISOTOPE_PARAMETERS_FOR_ALL
+    all_parameters['USE_SMALL_TEST_WINDOW'] = USE_SMALL_TEST_WINDOW
+    all_parameters['ONLY_VISUALIZE_ISOTOPES_FOR_NORMAL_DETECTED_PEAK'] = ONLY_VISUALIZE_ISOTOPES_FOR_NORMAL_DETECTED_PEAK
+    all_parameters['tmp_mz_of_peak'] = tmp_mz_of_peak
+    all_parameters['RT_MIN'] = RT_MIN
+    all_parameters['RT_MAX'] = RT_MAX
+    all_parameters['MZ_MIN'] = MZ_MIN
+    all_parameters['MZ_MAX'] = MZ_MAX
+
+
