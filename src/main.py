@@ -33,6 +33,8 @@ import scipy.integrate as integrate
 from scipy.sparse import dok_matrix
 import argparse
 
+from for_main import load_data_points_in_lists
+
 import generalcurvetools.curve_tools as cts
 from plotting import peak_plotting
 from datamodel import data_point
@@ -46,43 +48,6 @@ from easyIOmassspec import easyio
 from datamodel import efficient_find_next_max
 
 
-PLOT_ALL_PEAKS = True
-
-VERBOSE = False
-
-USE_HARD_CODED_DETECTION_PARAMETERS = False
-USE_ISOTOPE_PARAMETERS_FOR_ALL = False
-USE_SMALL_TEST_WINDOW = False
-
-# isotopes will be shown for the tmp_mz_of_peak value set
-ONLY_VISUALIZE_ISOTOPES_FOR_NORMAL_DETECTED_PEAK = False
-
-if USE_SMALL_TEST_WINDOW:
-    tmp_mz_of_peak = 212.006378174  # 20.25 21.75 rt
-    RT_MIN = 17.25
-    RT_MAX = 21.75
-    MZ_MIN = tmp_mz_of_peak - 10
-    MZ_MAX = tmp_mz_of_peak + 10
-
-##########################################################################
-########### Important numbers that need to be set ########################
-##########################################################################
-HP = hard_parameter.RequiredParameters()
-if USE_ISOTOPE_PARAMETERS_FOR_ALL:
-    HP.use_isotope_parameters_for_all()
-
-##########################################################################
-############ Done setting important numbers ##############################
-##########################################################################
-
-if ONLY_VISUALIZE_ISOTOPES_FOR_NORMAL_DETECTED_PEAK:
-    investigate_specific_mz = [-1]
-else:
-    investigate_specific_mz = [-1]
-    # investigate_specific_mz = [tmp_mz_of_peak]
-
-RESULT_LIST = []
-ISOTOPE_RESULT_PEAK_LIST = []
 
 
 def store_result(result):
@@ -937,76 +902,6 @@ def find_isotope_peak(cur_peak_object,
     return cur_peak_object
 
 
-def load_data_points_in_lists(dfr, absolute_intensity_thresh, mz_upper_cutoff):
-    """
-    Fills lists of mz values, RT values, and intensities as well as list of all data points
-
-    :param dfr: Data file reader object
-    :param absolute_intensity_thresh: Intensity below which everything is thrown out.
-    :return: Lists in this order mz_by_scan, inten_by_scan, rt, list_all_data_points
-    """
-
-    mz_by_scan = []
-    inten_by_scan = []
-    rt = []
-    scan_numbers = []
-    list_all_data_points = []
-
-    count = 0
-    mz, inten = dfr.get_next_scan_mzvals_intensities()
-    if not USE_SMALL_TEST_WINDOW:
-        while mz is not None:
-            # while (count<100):
-            # line below is to skip chemical noise in data Change back to above line HERE
-            # if (count>200)and(count<1200):
-            sys.stdout.write("\r" + str(count))
-            sys.stdout.flush()
-            mz_by_scan.append(mz)
-            inten_by_scan.append(inten)
-            rt.append(dfr.get_rt_from_scan_num(count))
-            scan_numbers.append(dfr.get_act_scan_num(count))
-            for i in range(len(mz)):
-                # Do not look for methabolites with m/z > this mz_upper_cutoff value.
-                if (mz[i] > 0.0) and (mz[i] < mz_upper_cutoff):
-                    # if (mz[i]>0.0)and(mz[i]<1000.0):
-                    if inten[i] < absolute_intensity_thresh:
-                        continue
-                    cur_dp = data_point.DataPoint(count, i, mz[i], inten[i])
-                    list_all_data_points.append(cur_dp)
-
-            mz, inten = dfr.get_next_scan_mzvals_intensities()
-
-            count += 1
-            # dfr.closeWriter()
-    else:
-        scan_index_count = 0
-        while mz is not None:
-            # while (count<100):
-            # line below is to skip chemical noise in data Change back to aboveline HERE
-            # if (count>200)and(count<1200):
-            cur_rt = dfr.get_rt_from_scan_num(count)
-            if (cur_rt < (RT_MAX * 60.0)) and (cur_rt > (RT_MIN * 60.0)):
-                #                sys.stdout.write("\r"+str(count))
-                #                sys.stdout.flush()
-                mz_by_scan.append(mz)
-                inten_by_scan.append(inten)
-                rt.append(cur_rt)
-                scan_numbers.append(dfr.get_act_scan_num(count))
-                for i in range(len(mz)):
-                    # For testing HERE
-                    if (mz[i] > MZ_MIN) and (mz[i] < MZ_MAX):
-                        # if (mz[i]>0.0)and(mz[i]<1000.0):
-                        if inten[i] < absolute_intensity_thresh:
-                            continue
-                        cur_dp = data_point.DataPoint(scan_index_count, i, mz[i], inten[i])
-                        list_all_data_points.append(cur_dp)
-                scan_index_count += 1
-
-            mz, inten = dfr.get_next_scan_mzvals_intensities()
-
-            count += 1
-    return mz_by_scan, inten_by_scan, rt, scan_numbers, list_all_data_points
-
 
 def get_unique_mz_values(mz_by_scan, rt, mz_upper_cutoff):
     """
@@ -1310,39 +1205,52 @@ def convert_result_object_to_list_of_peaks(list_of_results):
 
 def main():
     parser = argparse.ArgumentParser()
+
     # data file
     parser.add_argument('-f', action='store', dest='f', type=str, required=True)
+
     # verbose?
     parser.add_argument('-v', action='store_true', dest='v', required=False)
+
     # this is the intensity below which everything is noise -> setting this to non-zero number
     # drastically speeds things up.
-    parser.add_argument('--absoluteintensitythresh', action='store', dest='absoluteintensitythresh', type=float,
+    parser.add_argument('--absoluteintensitythresh', action='store', dest='absolute_intensity_threshold', type=float,
                         required=False, default=100.0)
+
     # minimum peak intensity threshold -> setting this can also speed things up quite a bit.
-    parser.add_argument('--peakintensitythresh', action='store', dest='peakintensitythresh', type=float, required=False,
+    parser.add_argument('--peakintensitythresh', action='store', dest='peak_intensity_threshold', type=float, required=False,
                         default=1000.0)
+
     # How many initial peaks used for calculating adaptive parameters?
-    parser.add_argument('--numinitpeaks', action='store', dest='numinitpeaks', type=int, required=False, default=20)
+    parser.add_argument('--numinitpeaks', action='store', dest='num_initial_peaks', type=int, required=False, default=20)
+
     # Example: probably don't want to look at m/z values above 1,000 if looking
     # for metabolites. To disregard m/z values over 1,000 set this to 1,000.
-    parser.add_argument('--mzupcutoff', action='store', dest='mzupcutoff', type=float, required=False, default=1000)
+    parser.add_argument('--mzupcutoff', action='store', dest='mz_up_cutoff', type=float, required=False, default=1000)
+
     # Output results directory paths. Just path
-    parser.add_argument('-o', action='store', dest='outputpath', type=str, required=False, default="Results/")
+    parser.add_argument('-o', action='store', dest='output_path', type=str, required=False, default="Results/")
+
     # Output results directory name
-    parser.add_argument('-n', action='store', dest='outputname', type=str, required=False, default="LastRun/")
+    parser.add_argument('-n', action='store', dest='output_name', type=str, required=False, default="LastRun/")
 
     inargs = parser.parse_args()
 
-    df_str = inargs.f
+    in_file_name = inargs.f
+
+
+
+
 
     ##########################################################
     ######## Get the output directory set up first ###########
     ########     in case there is some problem     ###########
     ##########################################################
-    output_results_path = inargs.outputpath
+    output_results_path = inargs.output_path
     if output_results_path[-1] != '/':
         output_results_path += '/'
-    output_results_dir_name = inargs.outputname
+
+    output_results_dir_name = inargs.output_name
     if output_results_dir_name[-1] != '/':
         output_results_dir_name += '/'
 
@@ -1352,45 +1260,63 @@ def main():
         shutil.rmtree(result_dir_str)
     os.mkdir(result_dir_str)
 
+
+
+
+
     ##########################################################
     #################### Things to set #######################
     ##########################################################
     global VERBOSE
     VERBOSE = inargs.v
 
-    mz_upper_cutoff = inargs.mzupcutoff
+    mz_upper_cutoff = inargs.mz_up_cutoff
 
     # All of the parameter will come from these peaks
-    how_many_initial_peak_for_determining_parameters = inargs.numinitpeaks
+    how_many_initial_peak_for_determining_parameters = inargs.num_initial_peaks
 
-    absolute_intensity_thresh = inargs.absoluteintensitythresh
+    absolute_intensity_threshold = inargs.absolute_intensity_threshold
 
     # you could also see what the 95th percentile intensity is to get
+
+
+
+
+
+
 
     ##########################################################
     ### First most intense peak parameters ###################
     ##########################################################
+
     # initial wavelet parameters
     initial_lowest_wavelet_scale = 1
     initial_highest_wavelet_scale = 10
+
     # minimum intensity threshold for first most intense peaks that are used in determining
     # parameters
-    min_initial_intensity_thresh = 5000
-    coef_over_area_initial_thresh = 100
-    wavelet_peak_similarity_thresh = "off"  # ignore, done prior to asymmetric gaussian fit
-    signal_noise_initial_thresh = "off"
+    min_initial_intensity_threshold = 5000
+    coef_over_area_initial_threshold = 100
+    wavelet_peak_similarity_threshold = "off"  # ignore, done prior to asymmetric gaussian fit
+    signal_noise_initial_threshold = "off"
     visualize_initial_peaks = False
+
     # number of scans used to calculate FWHM of MS peaks. Scans are selected randomly. The highest
     # intensity peak from each random scan is used for a single estimate of FWHM. ex. if this number is
     # 20 then the highest peaks fron 20 random scans are used to calculate FWHM.
     number_of_scans_for_fwhm_calc = 20
 
+
+
+
+
+
     ##########################################################
     ### Current parameters for peak picking after ############
     ### most intense peaks                        ############
     ##########################################################
-    min_intensity_thresh = inargs.peakintensitythresh
-    sig_noise_thresh = "off"
+    min_intensity_threshold = inargs.peak_intensity_threshold
+    sig_noise_threshold = "off"
     visualize_post_initial_peaks = False
 
     # percent of average peak width (found from initial high intensity peaks)
@@ -1430,13 +1356,10 @@ def main():
     ###########################################################
     ######## Get the all of the data into useful format #######
     ###########################################################
-    dfr = easyio.DataFileReader(df_str, True)
 
-    mz_by_scan, inten_by_scan, rt, scan_numbers, list_all_data_points = load_data_points_in_lists(dfr,
-                                                                                                  absolute_intensity_thresh,
-                                                                                                  mz_upper_cutoff)
+    mz_by_scan, inten_by_scan, rt, scan_numbers, list_all_data_points = load_data_points_in_lists.load_data_points_in_lists(in_file_name, absolute_intensity_threshold, mz_upper_cutoff)
 
-    print "Sorting the datapoints list"
+    print "Sorting data points list"
     list_all_data_points.sort(key=lambda x: x.intensity, reverse=True)
 
     # Change to minutes
@@ -1807,3 +1730,5 @@ if __name__ == "__main__":
 # python main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/Ppyralis_spermatophore_pos_20uL.mzXML --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
 
 # python main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/test_out.CDF --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
+
+# "-f" "/Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/test_out.CDF" "--absoluteintensitythresh" "500" "--peakintensitythresh" "5000" "--numinitpeaks" "20" "-o" "/Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d" "-n" "results"
