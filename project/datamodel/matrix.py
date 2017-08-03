@@ -7,6 +7,7 @@ import numpy as np
 
 class Matrix():
 
+
     def __init__(self, dfr, parameters, mz_constant_diff):
 
         self.parameters = parameters
@@ -23,6 +24,9 @@ class Matrix():
         self.create_matrix()
 
         self.efficient_next_max = efficient_find_next_max.EfficientNextMax(self.list_all_data_points)
+
+        self.index_to_data_point_dict = self.efficient_next_max.index_to_data_point_dic
+
 
     def load_data_points_in_list(self, dfr):
 
@@ -57,6 +61,7 @@ class Matrix():
 
         return list_all_data_points
 
+
     def get_unique_mz_values(self):
 
         self.unique_mzs = {}
@@ -90,6 +95,7 @@ class Matrix():
         print "     rt[-1]: " + str(self.rt[-1])
         print "     len(rt): " + str(len(self.rt))
 
+
     def create_matrix(self):
 
         self.list_all_data_points.sort(key=lambda x: x.intensity, reverse=True)
@@ -121,41 +127,67 @@ class Matrix():
 
             count_2 += 1
 
+
     def find_max(self):
 
         return self.efficient_next_max.find_max()
+
 
     def index_to_mz(self, index):
 
         return self.unique_mz_list[index]
 
-    def construct_EIC(self, int_mz_value, first_scan_boundary, second_scan_boundary):
 
-        mz_int_tolerance = self.parameters['mz_factor'] * self.parameters['mz_tolerance']
+    def iterate_unique_mz_list(self, first_mz_boundary, second_mz_boundary, first_scan_boundary, second_scan_boundary):
 
-        first_int_mz_boundary = int_mz_value - mz_int_tolerance
-        second_int_mz_boundary = int_mz_value + mz_int_tolerance
-
-        mz_start = None
-        mz_end = None
+        mz_end_found = False
         mz_start_found = False
 
         for unique_mz in self.unique_mz_list:
-            if unique_mz < second_int_mz_boundary:
-                if unique_mz > first_int_mz_boundary:
-                    if not mz_start_found:
-                        mz_start = self.mz_to_index_map[unique_mz]
-                        mz_start_found = True
-                    mz_end = self.mz_to_index_map[unique_mz]
+            if unique_mz <= second_mz_boundary:
+                if unique_mz >= first_mz_boundary:
+                    for scan_index in range(first_scan_boundary, second_scan_boundary + 1):
+                        if not mz_start_found:
+                            possible_mz_start = self.mz_to_index_map[unique_mz]
+                            try:
+                                if not self.index_to_data_point_dict[possible_mz_start, scan_index].been_removed:
+                                    mz_start = possible_mz_start
+                                    mz_start_found = True
+                            except KeyError:
+                                pass
+                        possible_mz_end = self.mz_to_index_map[unique_mz]
+                        try:
+                            if not self.index_to_data_point_dict[possible_mz_end, scan_index].been_removed:
+                                mz_end = possible_mz_end
+                                mz_end_found = True
+                                break
+                        except KeyError:
+                            continue
                 else:
                     continue
             else:
                 break
 
-        if mz_start is None and mz_end is None:
-            return [], [], -1, -1
+        if mz_start_found is False or mz_end_found is False:
+            return None, None, None
 
         inten_array = self.int_matrix[mz_start:mz_end + 1, first_scan_boundary:second_scan_boundary + 1].toarray().max(axis=0)
+
+        return mz_start, mz_end, inten_array
+
+
+    def construct_EIC(self, int_mz_value, first_scan_boundary, second_scan_boundary):
+
+        mz_int_tolerance = self.parameters['mz_factor'] * self.parameters['mz_tolerance']
+
+        first_mz_boundary = int_mz_value - mz_int_tolerance
+        second_mz_boundary = int_mz_value + mz_int_tolerance
+
+        mz_start, mz_end, inten_array = self.iterate_unique_mz_list(first_mz_boundary, second_mz_boundary, first_scan_boundary, second_scan_boundary)
+
+        if mz_start is None or mz_end is None:
+            return [], [], None, None
+
         rt_array = []
 
         for scan in range(first_scan_boundary, second_scan_boundary + 1):
@@ -164,77 +196,70 @@ class Matrix():
 
         return np.array(rt_array), inten_array, mz_start, mz_end
 
-    def remove_cur_max(self, mz_start, mz_end, first_scan_boundary, second_scan_boundary):
 
-        efficient_find_next_max.EfficientNextMax.done_with_rows_cols(self.efficient_next_max, mz_start, mz_end + 1, first_scan_boundary, second_scan_boundary + 1)
+    def iterate_to_find_inbetween(self, mz_value, expected_mz_value, mz_range, scan_index):
 
-    def find_inbetween_mz_values_and_remove(self, mz_value, mz_range, first_scan_boundary, second_scan_boundary, scan_index):
+        first_scan_boundary = scan_index
+        second_scan_boundary = scan_index
 
-        found_points = 0
+        found_points = 1
+        int_inbetween_mz_value_list = []
 
         for scalar in mz_range:
 
-            mz_int_tolerance = self.parameters['mz_factor'] * self.parameters['mz_tolerance']
-
             inbetween_mz_value = mz_value + (scalar * self.mz_constant_diff)
             int_inbetween_mz_value = inbetween_mz_value * self.parameters['mz_factor']
-            first_int_inbetween_mz_value_boundary = int_inbetween_mz_value - mz_int_tolerance
-            second_int_inbetween_mz_value_boundary = int_inbetween_mz_value + mz_int_tolerance
 
-            min_mz_index = None
-            max_mz_index = None
-            min_mz_found = False
+            mz_int_tolerance = self.parameters['mz_factor'] * self.parameters['mz_tolerance']
 
-            for unique_mz in self.unique_mz_list:
-                if unique_mz < second_int_inbetween_mz_value_boundary:
-                    if unique_mz > first_int_inbetween_mz_value_boundary:
-                        if not min_mz_found:
-                            min_mz_index = self.mz_to_index_map[unique_mz]
-                            min_mz_found = True
-                        max_mz_index = self.mz_to_index_map[unique_mz]
-                    else:
-                        continue
-                else:
-                    break
+            first_mz_boundary = int_inbetween_mz_value - mz_int_tolerance
+            second_mz_boundary = int_inbetween_mz_value + mz_int_tolerance
 
-            if min_mz_index is None and max_mz_index is None:
+            min_mz_index, max_mz_index, inten_array = self.iterate_unique_mz_list(first_mz_boundary, second_mz_boundary, first_scan_boundary, second_scan_boundary)
+
+            if min_mz_index is None or max_mz_index is None:
+                if inbetween_mz_value == expected_mz_value:
+                    return 0, []
                 continue
 
-            inten_array = self.int_matrix[min_mz_index:max_mz_index + 1, scan_index:scan_index + 1].toarray().max(axis=0)
-            if max(inten_array) == 0:
-                self.remove_cur_max(min_mz_index, max_mz_index + 1, first_scan_boundary, second_scan_boundary)
+            elif max(inten_array) == 0:
+                if inbetween_mz_value == expected_mz_value:
+                    return 0, []
                 continue
 
             found_points = found_points + 1
+            int_inbetween_mz_value_list.append(int_inbetween_mz_value)
 
-            self.remove_cur_max(min_mz_index, max_mz_index + 1, first_scan_boundary, second_scan_boundary)
+        int_inbetween_mz_value_list = sorted(int_inbetween_mz_value_list)
 
-        return found_points
+        return found_points, int_inbetween_mz_value_list
 
-    def remove_inbetween_mz_values(self, mz_value, expected_mz_value, first_scan_boundary, second_scan_boundary, scan_index, mz_scale):
+    def find_inbetween_mz_values(self, mz_value, expected_mz_value, scan_index, mz_scale):
 
         if mz_value > expected_mz_value:
             mz_range = range(0, mz_scale)
 
-            found_point_value = self.find_inbetween_mz_values_and_remove(expected_mz_value, mz_range, first_scan_boundary, second_scan_boundary, scan_index)
-
-            if (found_point_value / mz_scale) < self.parameters['found_values_between_peaks_threshold']:
-                return False
-            else:
-                return True
+            found_point_value, int_inbetween_mz_value_list = self.iterate_to_find_inbetween(expected_mz_value, expected_mz_value, mz_range, scan_index)
 
 
         elif mz_value < expected_mz_value:
             mz_range = range(mz_scale, 0, -1)
 
-            found_point_value = self.find_inbetween_mz_values_and_remove(mz_value, mz_range, first_scan_boundary, second_scan_boundary, scan_index)
-
-            if (found_point_value / mz_scale) < self.parameters['found_values_between_peaks_threshold']:
-                return False
-            else:
-                return True
+            found_point_value, int_inbetween_mz_value_list = self.iterate_to_find_inbetween(mz_value, expected_mz_value, mz_range, scan_index)
 
         else:
             print "This shouldn't happen"
             print mz_value
             print expected_mz_value
+            found_point_value = 0
+            int_inbetween_mz_value_list = []
+
+        if (found_point_value / mz_scale) < self.parameters['found_values_between_peaks_threshold']:
+            return False, []
+        else:
+            return True, int_inbetween_mz_value_list
+
+
+    def remove_cur_max(self, mz_start, mz_end, first_scan_boundary, second_scan_boundary):
+
+        efficient_find_next_max.EfficientNextMax.done_with_rows_cols(self.efficient_next_max, mz_start, mz_end + 1, first_scan_boundary, second_scan_boundary + 1)
