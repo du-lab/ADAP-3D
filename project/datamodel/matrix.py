@@ -260,6 +260,6 @@ class Matrix():
             return True, int_inbetween_mz_value_list
 
 
-    def remove_cur_max(self, mz_start, mz_end, first_scan_boundary, second_scan_boundary):
+    def remove_cur_max(self, mz_index, first_scan_boundary, second_scan_boundary):
 
-        efficient_find_next_max.EfficientNextMax.done_with_rows_cols(self.efficient_next_max, mz_start, mz_end + 1, first_scan_boundary, second_scan_boundary + 1)
+        efficient_find_next_max.EfficientNextMax.done_with_rows_cols(self.efficient_next_max, mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary + 1)
