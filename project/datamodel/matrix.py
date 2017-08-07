@@ -260,6 +260,45 @@ class Matrix():
             return True, int_inbetween_mz_value_list
 
 
-    def remove_cur_max(self, mz_index, first_scan_boundary, second_scan_boundary):
+    def check_existence(self, mz_value, scan_index):
 
-        efficient_find_next_max.EfficientNextMax.done_with_rows_cols(self.efficient_next_max, mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary + 1)
+        int_mz_value = mz_value * self.parameters['mz_factor']
+
+        int_mz_tolerance = self.parameters['mz_tolerance'] * self.parameters['mz_factor']
+
+        first_mz_bound = int_mz_value - int_mz_tolerance
+        second_mz_bound = int_mz_value + int_mz_tolerance
+
+        min_difference = np.inf
+        found_data_point = None
+
+        for unique_mz in self.unique_mz_list:
+
+            if unique_mz > first_mz_bound:
+
+                if unique_mz < second_mz_bound:
+
+                    difference = abs(unique_mz - int_mz_value)
+
+                    if difference < min_difference:
+
+                        mz_index = self.mz_to_index_map[unique_mz]
+
+                        try:
+
+                            if not self.index_to_data_point_dict[mz_index, scan_index].been_removed:
+                                found_data_point = self.index_to_data_point_dict[mz_index, scan_index]
+                                min_difference = difference
+
+                        except KeyError:
+                            continue
+                else:
+                    break
+
+        return found_data_point
+
+
+
+    def remove_cur_max(self, start_index, end_index, first_scan_boundary, second_scan_boundary):
+
+        efficient_find_next_max.EfficientNextMax.done_with_rows_cols(self.efficient_next_max, start_index, end_index + 1, first_scan_boundary, second_scan_boundary + 1)
