@@ -260,7 +260,7 @@ class Matrix():
             return True, int_inbetween_mz_value_list
 
 
-    def check_existence(self, mz_value, scan_index):
+    def check_existence(self, mz_value, scan_index, need_mz_index):
 
         int_mz_value = mz_value * self.parameters['mz_factor']
 
@@ -271,6 +271,7 @@ class Matrix():
 
         min_difference = np.inf
         found_data_point = None
+        found_mz_index = None
 
         for unique_mz in self.unique_mz_list:
 
@@ -289,14 +290,58 @@ class Matrix():
                             if not self.index_to_data_point_dict[mz_index, scan_index].been_removed:
                                 found_data_point = self.index_to_data_point_dict[mz_index, scan_index]
                                 min_difference = difference
+                                found_mz_index = mz_index
 
                         except KeyError:
                             continue
                 else:
                     break
 
-        return found_data_point
+        if need_mz_index:
+            return found_data_point, found_mz_index
+        else:
+            return found_data_point
 
+    def check_for_experimental(self, start_mz, carbon_range, scan_index, lower_mz):
+
+        exp_mz_list = []
+        exp_int_list = []
+
+        mz_index_list = []
+
+        number_of_found_points = 0
+
+        for scalar in range(0, carbon_range + 1):
+
+            if lower_mz:
+
+                mz_value = start_mz + (scalar * self.mz_constant_diff)
+
+            else:
+
+                mz_value = start_mz - (scalar * self.mz_constant_diff)
+
+            found_point, mz_index = self.check_existence(mz_value, scan_index, need_mz_index=True)
+
+            if found_point is None and mz_index is None:
+
+                exp_mz_list.append(mz_value)
+                exp_int_list.append(0.0)
+
+            else:
+
+                exp_mz_list.append(found_point.mz)
+                exp_int_list.append(found_point.intensity)
+
+                mz_index_list.append(mz_index)
+
+                number_of_found_points = number_of_found_points + 1
+
+        if number_of_found_points / (carbon_range + 1) < self.parameters['found_values_between_peaks_threshold']:
+
+            return None, None, None
+
+        return exp_mz_list, exp_int_list, mz_index_list
 
 
     def remove_cur_max(self, start_index, end_index, first_scan_boundary, second_scan_boundary):

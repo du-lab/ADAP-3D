@@ -83,10 +83,10 @@ def find_mz_error(mz_value, mz_list, greater_mz, scan_index, matrix_variables):
     return mz_to_error_dict
 
 
-def remove_all_values(starting_indices, ending_indices, first_scan_boundary, second_scan_boundary, matrix_variables):
+def remove_all_values(mz_index_list, scan_index, matrix_variables, parameters):
 
-    for index, start_index in enumerate(starting_indices):
-        matrix_variables.remove_cur_max(start_index, ending_indices[index], first_scan_boundary, second_scan_boundary)
+    for mz_index in mz_index_list:
+        matrix_variables.remove_cur_max(mz_index, mz_index + 1, scan_index, scan_index + 1)
 
 
 def gaussian(x, a, b, c):
@@ -124,7 +124,7 @@ def estimate_carbon_numbers(parameters):
     smallest_range = parameters['peak_range'][1]
     largest_range = parameters['peak_range'][0]
 
-    carbon_range_to_width_dict = {}
+    carbon_width_to_range_dict = {}
 
     for n in range(smallest_range, largest_range + 1):
 
@@ -164,14 +164,17 @@ def estimate_carbon_numbers(parameters):
                 max_index2 = index
 
         width_difference = abs(max_index1 - max_index2)
-        carbon_range_to_width_dict[n] = width_difference
+        if width_difference in carbon_width_to_range_dict:
+            carbon_width_to_range_dict[width_difference].append(n)
+        else:
+            carbon_width_to_range_dict[width_difference] = [n]
 
         plt.plot(n, width_difference, '.')
 
     plt.savefig(path + 'carbon_curve.pdf')
     plt.close()
 
-    return carbon_range_to_width_dict
+    return carbon_width_to_range_dict
 
 
 def create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters):
@@ -196,22 +199,35 @@ def create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
 
         theoretical_dist.append(dist1 + dist2)
 
-    plt.plot(range(0, carbon_range + 1), theoretical_dist)
-    plt.show()
-
     return theoretical_dist
 
 
-def find_second_peak(mz_value, scan_index, max_inten, carbon_range_to_width_dict, matrix_variables, parameters):
+def get_experimental_dist(carbon_range, carbon_width, mz_value, second_mz, scan_value, matrix_variables):
+
+    peak_check_range = (carbon_range - carbon_width) / 2
+
+    if mz_value < second_mz:
+        start_mz = mz_value - (peak_check_range * mz_constant_diff)
+        return matrix_variables.check_for_experimental(start_mz, carbon_range, scan_value, lower_mz=True)
+
+    elif mz_value > second_mz:
+        start_mz = mz_value + (peak_check_range * mz_constant_diff)
+        return matrix_variables.check_for_experimental(start_mz, carbon_range, scan_value, lower_mz=True)
+
+    else:
+        "This really should not be a problem."
+        return None, None, None
+
+
+def find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict, matrix_variables, parameters):
 
     left_peak_exists = False
-    right_peak_exists = False
-
     left_check = mz_value - mz_constant_diff
-    right_check = mz_value + mz_constant_diff
+    left_point = matrix_variables.check_existence(left_check, scan_index, need_mz_index=False)
 
-    left_point = matrix_variables.check_existence(left_check, scan_index)
-    right_point = matrix_variables.check_existence(right_check, scan_index)
+    right_peak_exists = False
+    right_check = mz_value + mz_constant_diff
+    right_point = matrix_variables.check_existence(right_check, scan_index, need_mz_index=False)
 
     if left_point is not None:
         left_inten = left_point.intensity
@@ -223,31 +239,38 @@ def find_second_peak(mz_value, scan_index, max_inten, carbon_range_to_width_dict
         if right_inten > max_inten * parameters['peak_check_threshold']:
             right_peak_exists = True
 
-    for mz_scale in range(parameters['peak_range'][0] * -1, parameters['peak_range'][0] + 1):
+    min_similarity = -np.inf
+
+    found_mz_list = None
+    found_intensity_list = None
+    found_mz_index_list = None
+
+    for mz_scale in range(max(carbon_width_to_range_dict) * -1, max(carbon_width_to_range_dict) + 1):
 
         if mz_scale in range((parameters['peak_range'][1] * -1) + 1, parameters['peak_range'][1]):
             continue
 
         expected_value = mz_value + (mz_scale * mz_constant_diff)
 
-        found_data_point = matrix_variables.check_existence(expected_value, scan_index)
+        found_data_point = matrix_variables.check_existence(expected_value, scan_index, need_mz_index=False)
 
         if found_data_point is None:
             continue
 
-        mz_range = abs(mz_scale)
+        carbon_width = abs(mz_scale)
 
         second_inten = found_data_point.intensity
+        second_mz = found_data_point.mz
 
         if mz_scale < 0:
             if left_peak_exists:
-                mz_range = mz_range - 1
+                carbon_width = carbon_width - 1
             first_ratio = second_inten / (max_inten + second_inten)
             second_ratio = max_inten / (max_inten + second_inten)
 
         elif mz_scale > 0:
             if right_peak_exists:
-                mz_range = mz_range - 1
+                carbon_width = carbon_width - 1
             first_ratio = max_inten / (max_inten + second_inten)
             second_ratio = second_inten / (max_inten + second_inten)
 
@@ -255,10 +278,33 @@ def find_second_peak(mz_value, scan_index, max_inten, carbon_range_to_width_dict
             print "This really should not be a problem."
             continue
 
-        for carbon_range in carbon_range_to_width_dict:
-            if mz_range == carbon_range_to_width_dict[carbon_range]:
-                theoretical_dist = create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
+        for carbon_range in carbon_width_to_range_dict[carbon_width]:
 
+            mz_list, experimental_intensity_list, mz_index_list = get_experimental_dist(carbon_range, carbon_width, mz_value, second_mz, scan_index, matrix_variables)
+
+            if mz_list is None:
+                continue
+
+            theoretical_dist = create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
+            similarity = curve_tools.get_similarity(experimental_intensity_list, theoretical_dist)
+
+            if similarity > min_similarity:
+                min_similarity = similarity
+                found_mz_list = mz_list
+                found_intensity_list = experimental_intensity_list
+                found_mz_index_list = mz_index_list
+
+            # fig = plt.figure()
+            # fig.add_subplot(211)
+            # plt.plot(mz_list, experimental_intensity_list, 'b')
+            # fig.add_subplot(212).set_title('Theoretical')
+            # plt.plot(mz_list, theoretical_dist, 'r')
+            # plt.suptitle(str(similarity))
+            # plt.tight_layout()
+            # plt.show()
+            # plt.close()
+
+    return found_mz_list, found_intensity_list, found_mz_index_list
 
 
 def find_second_peak_and_remove_all_values(mz_value,
@@ -391,7 +437,7 @@ def main():
                   'found_values_between_peaks_threshold': 0.66,
                   'extension_of_feature': 2}
 
-    carbon_range_to_width_dict = estimate_carbon_numbers(parameters)
+    carbon_width_to_range_dict = estimate_carbon_numbers(parameters)
 
     error_list = []
 
@@ -452,20 +498,6 @@ def main():
                     matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
                     continue
 
-                # errors = np.sqrt(np.diag(pcov))
-                # c_value = errors[2]
-                #
-                # if c_value > parameters['c_value_filter']:
-                #     matrix_variables.remove_cur_max(mz_start, mz_end, mz_index, first_scan_boundary, second_scan_boundary)
-                #     continue
-
-                # fig = plt.figure()
-                # axes = fig.add_subplot(111)
-                # axes.plot(rt_array, inten_array)
-                # fig.suptitle(str(mz_value))
-                # plt.savefig('/Users/jasonzhou/Desktop/Testing/' + str(count) + '.pdf')
-                # plt.close()
-
                 gaussian_values = gaussian(rt_array, max_inten, rt_of_max_inten, popt[2])
                 delta = inten_array - gaussian_values
                 error = np.mean(delta ** 2)
@@ -481,101 +513,106 @@ def main():
                     matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
                     continue
 
-                else:
+                bounded_rt_array = []
+                bounded_inten_array = []
 
-                    bounded_rt_array = []
-                    bounded_inten_array = []
+                for index, rt in enumerate(rt_array):
+                    if rt > rt_boundaries[0] and rt < rt_boundaries[1]:
+                        bounded_rt_array.append(rt)
+                        bounded_inten_array.append(inten_array[index])
 
-                    for index, rt in enumerate(rt_array):
-                        if rt > rt_boundaries[0] and rt < rt_boundaries[1]:
-                            bounded_rt_array.append(rt)
-                            bounded_inten_array.append(inten_array[index])
-
-                    for rt_index, listed_rt in enumerate(matrix_variables.rt):
-                        if listed_rt == min(bounded_rt_array):
-                            first_scan_boundary = rt_index
-                        elif listed_rt == max(bounded_rt_array):
-                            second_scan_boundary = rt_index
-                            break
-                        else:
-                            continue
-
-                    find_second_peak(mz_value, scan_index, max_inten, carbon_range_to_width_dict, matrix_variables, parameters)
-
-
-                    int_inbetween_mz_value_dict, found_rt_array, found_inten_array, expected_value = find_second_peak_and_remove_all_values(mz_value,
-                                                                                                                                            first_scan_boundary,
-                                                                                                                                            second_scan_boundary,
-                                                                                                                                            scan_index,
-                                                                                                                                            bounded_inten_array,
-                                                                                                                                            matrix_variables,
-                                                                                                                                            parameters)
-
-                    if int_inbetween_mz_value_dict is None:
-                        matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
+                for rt_index, listed_rt in enumerate(matrix_variables.rt):
+                    if listed_rt == min(bounded_rt_array):
+                        first_scan_boundary = rt_index
+                    elif listed_rt == max(bounded_rt_array):
+                        second_scan_boundary = rt_index
+                        break
+                    else:
                         continue
 
-                    mz_list = []
-                    starting_indices = []
-                    ending_indices = []
+                found_mz_list, found_intensity_list, found_mz_index_list = find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict, matrix_variables, parameters)
 
-                    rt_array_list = [bounded_rt_array, found_rt_array]
-                    inten_array_list = [bounded_inten_array, found_inten_array]
-
-                    for int_inbetween_mz_value in int_inbetween_mz_value_dict:
-                        rt_array, inten_array, mz_start, mz_end = matrix_variables.construct_EIC(int_inbetween_mz_value, first_scan_boundary, second_scan_boundary)
-
-                        starting_indices.append(mz_start)
-                        ending_indices.append(mz_end)
-
-                        rt_array_list.append(rt_array)
-                        inten_array_list.append(inten_array)
-
-                        real_index = -1
-                        starting_mz_difference = np.inf
-
-                        for index in range(mz_start, mz_end + 1):
-                            try:
-                                mz = matrix_variables.index_to_data_point_dict[index, scan_index].mz
-                                mz_difference = abs(int_inbetween_mz_value - mz)
-                                if mz_difference < starting_mz_difference:
-                                    starting_mz_difference = mz_difference
-                                    real_index = index
-                            except KeyError:
-                                continue
-
-                        if real_index == -1:
-
-                            print "Something Went Really Wrong"
-
-                        else:
-
-                            mz_list.append(real_index)
-
-                    if mz_value < expected_value:
-                        mz_to_error_dict = find_mz_error(mz_value, mz_list, False, scan_index, matrix_variables)
-                        mz_list.insert(0, mz_index)
-                        starting_indices.insert(0, mz_index)
-                        ending_indices.insert(0, mz_index)
-                    else:
-                        mz_to_error_dict = find_mz_error(mz_value, mz_list, True, scan_index, matrix_variables)
-                        mz_list.append(mz_index)
-                        starting_indices.append(mz_index)
-                        ending_indices.append(mz_index)
-
-                    error_list.append(mz_to_error_dict)
-
-                    title = 'Original: ' + str(mz_value) + ' | Expected: ' + str(expected_value)
-                    title_2 = 'RT: ' + str(rt_of_max_inten) + ' | Scan Index: ' + str(scan_index)
-
-                    plot_chromatogram(title, title_2, mz_value, expected_value, count, scan_index, rt_array_list, inten_array_list, mz_list, matrix_variables, parameters)
-
-                    remove_all_values(starting_indices, ending_indices, first_scan_boundary, second_scan_boundary, matrix_variables)
-
-                    print count
-                    count = count + 1
-
+                if found_mz_list is None:
+                    matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
                     continue
+
+                else:
+                    remove_all_values(found_mz_index_list, scan_index, matrix_variables, parameters)
+                    continue
+
+                int_inbetween_mz_value_dict, found_rt_array, found_inten_array, expected_value = find_second_peak_and_remove_all_values(mz_value,
+                                                                                                                                        first_scan_boundary,
+                                                                                                                                        second_scan_boundary,
+                                                                                                                                        scan_index,
+                                                                                                                                        bounded_inten_array,
+                                                                                                                                        matrix_variables,
+                                                                                                                                        parameters)
+
+                if int_inbetween_mz_value_dict is None:
+                    matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
+                    continue
+
+                mz_list = []
+                starting_indices = []
+                ending_indices = []
+
+                rt_array_list = [bounded_rt_array, found_rt_array]
+                inten_array_list = [bounded_inten_array, found_inten_array]
+
+                for int_inbetween_mz_value in int_inbetween_mz_value_dict:
+                    rt_array, inten_array, mz_start, mz_end = matrix_variables.construct_EIC(int_inbetween_mz_value, first_scan_boundary, second_scan_boundary)
+
+                    starting_indices.append(mz_start)
+                    ending_indices.append(mz_end)
+
+                    rt_array_list.append(rt_array)
+                    inten_array_list.append(inten_array)
+
+                    real_index = -1
+                    starting_mz_difference = np.inf
+
+                    for index in range(mz_start, mz_end + 1):
+                        try:
+                            mz = matrix_variables.index_to_data_point_dict[index, scan_index].mz
+                            mz_difference = abs(int_inbetween_mz_value - mz)
+                            if mz_difference < starting_mz_difference:
+                                starting_mz_difference = mz_difference
+                                real_index = index
+                        except KeyError:
+                            continue
+
+                    if real_index == -1:
+
+                        print "Something Went Really Wrong"
+
+                    else:
+
+                        mz_list.append(real_index)
+
+                if mz_value < expected_value:
+                    mz_to_error_dict = find_mz_error(mz_value, mz_list, False, scan_index, matrix_variables)
+                    mz_list.insert(0, mz_index)
+                    starting_indices.insert(0, mz_index)
+                    ending_indices.insert(0, mz_index)
+                else:
+                    mz_to_error_dict = find_mz_error(mz_value, mz_list, True, scan_index, matrix_variables)
+                    mz_list.append(mz_index)
+                    starting_indices.append(mz_index)
+                    ending_indices.append(mz_index)
+
+                error_list.append(mz_to_error_dict)
+
+                title = 'Original: ' + str(mz_value) + ' | Expected: ' + str(expected_value)
+                title_2 = 'RT: ' + str(rt_of_max_inten) + ' | Scan Index: ' + str(scan_index)
+
+                plot_chromatogram(title, title_2, mz_value, expected_value, count, scan_index, rt_array_list, inten_array_list, mz_list, matrix_variables, parameters)
+
+                remove_all_values(starting_indices, ending_indices, first_scan_boundary, second_scan_boundary, matrix_variables)
+
+                print count
+                count = count + 1
+
+                continue
 
             else:
                 continue
