@@ -13,46 +13,42 @@ path = '/Users/jasonzhou/Desktop/Working Folder/'
 mz_constant_diff = 1.00335
 
 
-def plot_chromatogram(title, title_2, mz_value, expected_value, count, scan_index, rt_array_list, inten_array_list, mz_list, matrix_variables, parameters):
-
-    first_mz_value = mz_list[0]
-    last_mz_value = mz_list[len(mz_list) - 1]
-
-    int_mz_value = mz_value * parameters['mz_factor']
-    int_expected_value = expected_value * parameters['mz_factor']
-
-    first_mz_boundary = min(int_mz_value, int_expected_value) - (parameters['extension_of_feature'] * parameters['mz_factor'])
-    second_mz_boundary = max(int_mz_value, int_expected_value) + (parameters['extension_of_feature'] * parameters['mz_factor'])
-
-    mz_index_start, mz_index_end, inten_array = matrix_variables.iterate_unique_mz_list(first_mz_boundary, second_mz_boundary, scan_index, scan_index)
+def plot_chromatogram(found_mz_list, mz_value, second_mz, bounded_rt_array, intensity_array_list, count, scan_index, chromatogram_title, feature_title, matrix_variables, parameters):
 
     fig_combined = plt.figure()
+
     ax_combined = fig_combined.add_subplot(211)
 
-    for index, array in enumerate(rt_array_list):
-        ax_combined.plot(rt_array_list[index], inten_array_list[index])
+    for intensity_array in intensity_array_list:
+        ax_combined.plot(bounded_rt_array, intensity_array)
 
-    feature_ax = fig_combined.add_subplot(212)
-
-    for mz_index in range(mz_index_start, mz_index_end + 1):
-        try:
-            mz = matrix_variables.index_to_data_point_dict[mz_index, scan_index].mz
-            inten = matrix_variables.index_to_data_point_dict[mz_index, scan_index].intensity
-            if mz_index == first_mz_value or mz_index == last_mz_value:
-                feature_ax.plot([mz, mz], [0, inten], 'b')
-            elif mz_index in mz_list:
-                feature_ax.plot([mz, mz], [0, inten], 'r')
-            else:
-                feature_ax.plot([mz, mz], [0, inten], 'k', alpha=0.5)
-        except KeyError:
-            continue
-
-    ax_combined.set_title(title)
+    ax_combined.set_title(chromatogram_title)
 
     ax_combined.set_xlabel("Retention Time")
     ax_combined.set_ylabel("Intensity")
 
-    feature_ax.set_title(title_2)
+    feature_ax = fig_combined.add_subplot(212)
+
+    starting_mz_value = min(found_mz_list) - parameters['extension_of_feature']
+    ending_mz_value = max(found_mz_list) + parameters['extension_of_feature']
+
+    complete_mz_list = matrix_variables.mz_by_scan[scan_index]
+    complete_intensity_list = matrix_variables.inten_by_scan[scan_index]
+
+    for index, mz in enumerate(complete_mz_list):
+        if mz > starting_mz_value:
+            if mz < ending_mz_value:
+                intensity = complete_intensity_list[index]
+                if mz == mz_value or mz == second_mz:
+                    feature_ax.plot([mz, mz], [0, intensity], 'b')
+                elif mz in found_mz_list:
+                    feature_ax.plot([mz, mz], [0, intensity], 'r')
+                else:
+                    feature_ax.plot([mz, mz], [0, intensity], 'k', alpha=0.3)
+            else:
+                break
+
+    feature_ax.set_title(feature_title)
 
     feature_ax.set_xlabel("M/z")
     feature_ax.set_ylabel("Intensity")
@@ -83,10 +79,11 @@ def find_mz_error(mz_value, mz_list, greater_mz, scan_index, matrix_variables):
     return mz_to_error_dict
 
 
-def remove_all_values(mz_index_list, scan_index, matrix_variables, parameters):
+def remove_all_values(starting_mz_list, ending_mz_list, first_scan_boundary, second_scan_boundary, matrix_variables):
 
-    for mz_index in mz_index_list:
-        matrix_variables.remove_cur_max(mz_index, mz_index + 1, scan_index, scan_index + 1)
+    for index, starting_index in enumerate(starting_mz_list):
+        ending_index = ending_mz_list[index]
+        matrix_variables.remove_cur_max(starting_index, ending_index + 1, first_scan_boundary, second_scan_boundary + 1)
 
 
 def gaussian(x, a, b, c):
@@ -212,7 +209,7 @@ def get_experimental_dist(carbon_range, carbon_width, mz_value, second_mz, scan_
 
     elif mz_value > second_mz:
         start_mz = mz_value + (peak_check_range * mz_constant_diff)
-        return matrix_variables.check_for_experimental(start_mz, carbon_range, scan_value, lower_mz=True)
+        return matrix_variables.check_for_experimental(start_mz, carbon_range, scan_value, lower_mz=False)
 
     else:
         "This really should not be a problem."
@@ -239,11 +236,14 @@ def find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict
         if right_inten > max_inten * parameters['peak_check_threshold']:
             right_peak_exists = True
 
-    min_similarity = -np.inf
+    min_similarity = parameters['min_similarity_threshold']
 
     found_mz_list = None
     found_intensity_list = None
     found_mz_index_list = None
+
+    found_second_mz = None
+    found_second_intensity = None
 
     for mz_scale in range(max(carbon_width_to_range_dict) * -1, max(carbon_width_to_range_dict) + 1):
 
@@ -259,20 +259,28 @@ def find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict
 
         carbon_width = abs(mz_scale)
 
-        second_inten = found_data_point.intensity
+        second_intensity = found_data_point.intensity
         second_mz = found_data_point.mz
 
         if mz_scale < 0:
             if left_peak_exists:
-                carbon_width = carbon_width - 1
-            first_ratio = second_inten / (max_inten + second_inten)
-            second_ratio = max_inten / (max_inten + second_inten)
+                try:
+                    if len(carbon_width_to_range_dict[carbon_width - 1]) > 1:
+                        carbon_width = carbon_width - 1
+                except KeyError:
+                    pass
+            first_ratio = second_intensity / (max_inten + second_intensity)
+            second_ratio = max_inten / (max_inten + second_intensity)
 
         elif mz_scale > 0:
             if right_peak_exists:
-                carbon_width = carbon_width - 1
-            first_ratio = max_inten / (max_inten + second_inten)
-            second_ratio = second_inten / (max_inten + second_inten)
+                try:
+                    if len(carbon_width_to_range_dict[carbon_width - 1]) > 1:
+                        carbon_width = carbon_width - 1
+                except KeyError:
+                    pass
+            first_ratio = max_inten / (max_inten + second_intensity)
+            second_ratio = second_intensity / (max_inten + second_intensity)
 
         else:
             print "This really should not be a problem."
@@ -285,14 +293,22 @@ def find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict
             if mz_list is None:
                 continue
 
+            if not second_intensity in experimental_intensity_list:
+                print "The second peak intensity was not found within the experimental distribution." \
+                      "Check find_second_peak."
+
             theoretical_dist = create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
             similarity = curve_tools.get_similarity(experimental_intensity_list, theoretical_dist)
 
             if similarity > min_similarity:
                 min_similarity = similarity
+
                 found_mz_list = mz_list
                 found_intensity_list = experimental_intensity_list
                 found_mz_index_list = mz_index_list
+
+                found_second_mz = second_mz
+                found_second_intensity = second_intensity
 
             # fig = plt.figure()
             # fig.add_subplot(211)
@@ -304,125 +320,47 @@ def find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict
             # plt.show()
             # plt.close()
 
-    return found_mz_list, found_intensity_list, found_mz_index_list
+    return found_mz_list, found_intensity_list, found_mz_index_list, found_second_mz, found_second_intensity
 
 
-def find_second_peak_and_remove_all_values(mz_value,
-                                           first_scan_boundary,
-                                           second_scan_boundary,
-                                           scan_index,
-                                           bounded_inten_array,
-                                           matrix_variables,
-                                           parameters):
+def check_EIC(mz_list, intensity_list, bounded_inten_array, second_intensity, first_scan_boundary, second_scan_boundary, matrix_variables, parameters):
 
-    for mz_scale in range(parameters['peak_range'][0], parameters['peak_range'][1], -1):
+    is_similar = True
 
-        expected_value_1 = mz_value - (mz_scale * mz_constant_diff)
-        expected_value_2 = mz_value + (mz_scale * mz_constant_diff)
+    inten_array_list = []
+    starting_index_list = []
+    ending_index_list = []
 
-        int_expected_value_1 = expected_value_1 * parameters['mz_factor']
-        int_expected_value_2 = expected_value_2 * parameters['mz_factor']
+    for index, mz in enumerate(mz_list):
 
-        found_rt_array_1, found_inten_array_1, mz_start_1, mz_end_1 = matrix_variables.construct_EIC(
-            int_expected_value_1,
-            first_scan_boundary,
-            second_scan_boundary)
+        if intensity_list[index] > second_intensity * parameters['intensity_check_for_EIC']:
 
-        found_rt_array_2, found_inten_array_2, mz_start_2, mz_end_2 = matrix_variables.construct_EIC(
-            int_expected_value_2,
-            first_scan_boundary,
-            second_scan_boundary)
+            int_mz = mz * parameters['mz_factor']
 
-        if len(found_rt_array_1) == 0 and len(found_rt_array_2) == 0:
-            continue
+            rt_array, inten_array, mz_start, mz_end = matrix_variables.construct_EIC(int_mz, first_scan_boundary, second_scan_boundary)
 
-        elif len(found_rt_array_1) == 0:
-            if sum(found_inten_array_2) == 0.0:
-                continue
+            similarity = curve_tools.get_similarity(bounded_inten_array, inten_array)
 
-            sim = curve_tools.get_similarity(bounded_inten_array, found_inten_array_2)
-            if sim > parameters['peak_similarity_threshold']:
-                passes_found_point_threshold, int_inbetween_mz_value_dict = matrix_variables.find_inbetween_mz_values(mz_value, expected_value_2, scan_index, mz_scale)
+            if similarity < parameters['similarity_of_EIC_threshold']:
 
-                if not passes_found_point_threshold:
-                    break
+                is_similar = False
+                break
 
-                return int_inbetween_mz_value_dict, found_rt_array_1, found_inten_array_1, expected_value_2
+            inten_array_list.append(inten_array)
+            starting_index_list.append(mz_start)
+            ending_index_list.append(mz_end)
 
-        elif len(found_rt_array_2) == 0:
-            if sum(found_inten_array_1) == 0.0:
-                continue
-
-            sim = curve_tools.get_similarity(bounded_inten_array, found_inten_array_1)
-            if sim > parameters['peak_similarity_threshold']:
-                passes_found_point_threshold, int_inbetween_mz_value_dict = matrix_variables.find_inbetween_mz_values(mz_value, expected_value_1, scan_index, mz_scale)
-
-                if not passes_found_point_threshold:
-                    break
-
-                return int_inbetween_mz_value_dict, found_rt_array_1, found_inten_array_1, expected_value_1
-
-        else:
-            if sum(found_inten_array_1) + sum(found_inten_array_2) == 0.0:
-                continue
-
-            sim = curve_tools.get_similarity(bounded_inten_array, found_inten_array_2)
-            if sim > parameters['peak_similarity_threshold']:
-                passes_found_point_threshold, int_inbetween_mz_value_dict = matrix_variables.find_inbetween_mz_values(mz_value, expected_value_2, scan_index, mz_scale)
-
-                if not passes_found_point_threshold:
-                    break
-
-                return int_inbetween_mz_value_dict, found_rt_array_1, found_inten_array_1, expected_value_2
-
-            sim = curve_tools.get_similarity(bounded_inten_array, found_inten_array_1)
-            if sim > parameters['peak_similarity_threshold']:
-                passes_found_point_threshold, int_inbetween_mz_value_dict = matrix_variables.find_inbetween_mz_values(mz_value, expected_value_1, scan_index, mz_scale)
-
-                if not passes_found_point_threshold:
-                    break
-
-                return int_inbetween_mz_value_dict, found_rt_array_1, found_inten_array_1, expected_value_1
-
-            sim_1 = curve_tools.get_similarity(bounded_inten_array, found_inten_array_1)
-            sim_2 = curve_tools.get_similarity(bounded_inten_array, found_inten_array_2)
-
-            if sim_1 > sim_2:
-                if sim_1 > parameters['peak_similarity_threshold']:
-                    passes_found_point_threshold, int_inbetween_mz_value_dict = matrix_variables.find_inbetween_mz_values(mz_value, expected_value_1, scan_index, mz_scale)
-
-                    if not passes_found_point_threshold:
-                        break
-
-                    return int_inbetween_mz_value_dict, found_rt_array_1, found_inten_array_1, expected_value_1
-
-            elif sim_2 > sim_1:
-                if sim_2 > parameters['peak_similarity_threshold']:
-                    passes_found_point_threshold, int_inbetween_mz_value_dict = matrix_variables.find_inbetween_mz_values(mz_value, expected_value_2, scan_index, mz_scale)
-
-                    if not passes_found_point_threshold:
-                        break
-
-                    return int_inbetween_mz_value_dict, found_rt_array_1, found_inten_array_1, expected_value_2
-
-            else:
-                if sim_1 > parameters['peak_similarity_threshold'] and sim_2 > parameters['peak_similarity_threshold']:
-                    print "HOW DOES THIS HAPPEN? WHAT ARE THE ODDS?"
-                    print sim_1
-                    print sim_2
-                    print mz_value
-                    print expected_value_1
-                    print expected_value_2
-                    return None, None, None, None
-
-    return None, None, None, None
+    if is_similar:
+        return inten_array_list, starting_index_list, ending_index_list
+    else:
+        return None, None, None
 
 
 def main():
     time_1 = time.time()
 
     parameters = {'exp_c13_abundance': 0.05,
-                  'absolute_intensity_thresh': 100.0,
+                  'absolute_intensity_thresh': 0.0,
                   'mz_factor': 10000.0,
                   'peak_range': [35, 2],
                   'peak_check_threshold': 0.95,
@@ -431,15 +369,15 @@ def main():
                   'peak_intensity_threshold': 5000,
                   'gaussian_error_tolerance': 0.02,
                   'gaussian_intensity_percentage': 0.05,
+                  'min_similarity_threshold': 0.3,
                   'low_boundary_range': 0.02,
                   'high_boundary_range': 0.1,
-                  'peak_similarity_threshold': 0.5,
-                  'found_values_between_peaks_threshold': 0.66,
+                  'intensity_check_for_EIC': 0.2,
+                  'similarity_of_EIC_threshold': 0.5,
+                  'found_values_between_peaks_threshold': 0.67,
                   'extension_of_feature': 2}
 
     carbon_width_to_range_dict = estimate_carbon_numbers(parameters)
-
-    error_list = []
 
     input_dir = path + 'Data/'
 
@@ -465,11 +403,13 @@ def main():
 
             if not data_point.been_removed:
 
-                mz_index, scan_index = matrix_variables.find_max()
+                mz_index = data_point.mz_index
+                scan_index = data_point.scan_index
 
-                int_mz_value = matrix_variables.index_to_mz(mz_index)
-                mz_value = matrix_variables.index_to_mz(mz_index) / parameters['mz_factor']
-                max_inten = matrix_variables.int_matrix[mz_index, scan_index]
+                mz_value = data_point.mz
+                int_mz_value = mz_value * parameters['mz_factor']
+
+                max_inten = data_point.intensity
                 rt_of_max_inten = matrix_variables.rt[scan_index]
 
                 first_scan_boundary = scan_index - parameters['scan_boundary']
@@ -530,92 +470,27 @@ def main():
                     else:
                         continue
 
-                found_mz_list, found_intensity_list, found_mz_index_list = find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict, matrix_variables, parameters)
+                found_mz_list, found_intensity_list, found_mz_index_list, second_mz, second_intensity = find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict, matrix_variables, parameters)
 
                 if found_mz_list is None:
                     matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
                     continue
 
-                else:
-                    remove_all_values(found_mz_index_list, scan_index, matrix_variables, parameters)
-                    continue
+                intensity_array_list, starting_mz_list, ending_mz_list = check_EIC(found_mz_list, found_intensity_list, bounded_inten_array, second_intensity, first_scan_boundary, second_scan_boundary, matrix_variables, parameters)
 
-                int_inbetween_mz_value_dict, found_rt_array, found_inten_array, expected_value = find_second_peak_and_remove_all_values(mz_value,
-                                                                                                                                        first_scan_boundary,
-                                                                                                                                        second_scan_boundary,
-                                                                                                                                        scan_index,
-                                                                                                                                        bounded_inten_array,
-                                                                                                                                        matrix_variables,
-                                                                                                                                        parameters)
-
-                if int_inbetween_mz_value_dict is None:
+                if intensity_array_list is None:
                     matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
                     continue
 
-                mz_list = []
-                starting_indices = []
-                ending_indices = []
+                chromatogram_title = 'Original: ' + str(mz_value) + ' | Expected: ' + str(second_mz)
+                feature_title = 'RT: ' + str(rt_of_max_inten) + ' | Scan Index: ' + str(scan_index)
 
-                rt_array_list = [bounded_rt_array, found_rt_array]
-                inten_array_list = [bounded_inten_array, found_inten_array]
+                plot_chromatogram(found_mz_list, mz_value, second_mz, bounded_rt_array, intensity_array_list, count, scan_index, chromatogram_title, feature_title, matrix_variables, parameters)
 
-                for int_inbetween_mz_value in int_inbetween_mz_value_dict:
-                    rt_array, inten_array, mz_start, mz_end = matrix_variables.construct_EIC(int_inbetween_mz_value, first_scan_boundary, second_scan_boundary)
-
-                    starting_indices.append(mz_start)
-                    ending_indices.append(mz_end)
-
-                    rt_array_list.append(rt_array)
-                    inten_array_list.append(inten_array)
-
-                    real_index = -1
-                    starting_mz_difference = np.inf
-
-                    for index in range(mz_start, mz_end + 1):
-                        try:
-                            mz = matrix_variables.index_to_data_point_dict[index, scan_index].mz
-                            mz_difference = abs(int_inbetween_mz_value - mz)
-                            if mz_difference < starting_mz_difference:
-                                starting_mz_difference = mz_difference
-                                real_index = index
-                        except KeyError:
-                            continue
-
-                    if real_index == -1:
-
-                        print "Something Went Really Wrong"
-
-                    else:
-
-                        mz_list.append(real_index)
-
-                if mz_value < expected_value:
-                    mz_to_error_dict = find_mz_error(mz_value, mz_list, False, scan_index, matrix_variables)
-                    mz_list.insert(0, mz_index)
-                    starting_indices.insert(0, mz_index)
-                    ending_indices.insert(0, mz_index)
-                else:
-                    mz_to_error_dict = find_mz_error(mz_value, mz_list, True, scan_index, matrix_variables)
-                    mz_list.append(mz_index)
-                    starting_indices.append(mz_index)
-                    ending_indices.append(mz_index)
-
-                error_list.append(mz_to_error_dict)
-
-                title = 'Original: ' + str(mz_value) + ' | Expected: ' + str(expected_value)
-                title_2 = 'RT: ' + str(rt_of_max_inten) + ' | Scan Index: ' + str(scan_index)
-
-                plot_chromatogram(title, title_2, mz_value, expected_value, count, scan_index, rt_array_list, inten_array_list, mz_list, matrix_variables, parameters)
-
-                remove_all_values(starting_indices, ending_indices, first_scan_boundary, second_scan_boundary, matrix_variables)
+                remove_all_values(starting_mz_list, ending_mz_list, first_scan_boundary, second_scan_boundary, matrix_variables)
 
                 print count
                 count = count + 1
-
-                continue
-
-            else:
-                continue
 
     time_2 = time.time()
 
