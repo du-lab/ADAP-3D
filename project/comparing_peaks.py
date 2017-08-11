@@ -1,20 +1,23 @@
-from scipy.optimize import curve_fit
-from easyIOmassspec import easyio
-from generalcurvetools import curve_tools
-from datamodel import matrix
-import matplotlib.pyplot as plt
-import numpy as np
 import math
 import os
 import shutil
 import time
 
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.optimize import curve_fit
+
+from iso_dist_generator import get_carbon_num_to_mono_mass as mono_mass
+from datamodel import matrix
+from easyIOmassspec import easyio
+from generalcurvetools import curve_tools
+
 path = '/Users/jasonzhou/Desktop/Working Folder/'
 mz_constant_diff = 1.00335
 
 
-def plot_chromatogram(found_mz_list, mz_value, second_mz, bounded_rt_array, intensity_array_list, count, scan_index, chromatogram_title, feature_title, matrix_variables, parameters):
-
+def plot_chromatogram(found_mz_list, mz_value, second_mz, bounded_rt_array, intensity_array_list, count,
+                      scan_index, chromatogram_title, feature_title, matrix_variables, parameters):
     fig_combined = plt.figure()
 
     ax_combined = fig_combined.add_subplot(211)
@@ -59,8 +62,29 @@ def plot_chromatogram(found_mz_list, mz_value, second_mz, bounded_rt_array, inte
     plt.close()
 
 
-def find_mz_error(mz_value, mz_list, greater_mz, scan_index, matrix_variables):
+def get_norm_dot_product(experimental, theoretical):
+    dot_product = np.dot(experimental, theoretical)
 
+    exp_norm_factor = np.linalg.norm(experimental)
+    theo_norm_factor = np.linalg.norm(theoretical)
+
+    normalizing_factor = exp_norm_factor * theo_norm_factor
+
+    norm_dot_product = dot_product / normalizing_factor
+
+    return norm_dot_product
+
+
+def get_carbon_number_factor(carbon_number, parameters):
+    adjusted_carbon_number = carbon_number - 1
+    exponent = -adjusted_carbon_number * parameters['carbon_number_parameter']
+    inversed_factor = np.exp(exponent)
+    carbon_number_factor = 1 - inversed_factor
+
+    return carbon_number_factor
+
+
+def find_mz_error(mz_value, mz_list, greater_mz, scan_index, matrix_variables):
     mz_to_error_dict = {}
 
     for mz_index in mz_list:
@@ -80,7 +104,6 @@ def find_mz_error(mz_value, mz_list, greater_mz, scan_index, matrix_variables):
 
 
 def remove_all_values(starting_mz_list, ending_mz_list, first_scan_boundary, second_scan_boundary, matrix_variables):
-
     for index, starting_index in enumerate(starting_mz_list):
         ending_index = ending_mz_list[index]
         matrix_variables.remove_cur_max(starting_index, ending_index + 1, first_scan_boundary, second_scan_boundary + 1)
@@ -112,7 +135,6 @@ def calc_width_of_gaussian(popt, parameters):
 
 
 def estimate_carbon_numbers(parameters):
-
     plt.figure()
 
     exp_c13_abundance = parameters['exp_c13_abundance']
@@ -129,7 +151,6 @@ def estimate_carbon_numbers(parameters):
         dist2 = []
 
         for k in range(0, n + 1):
-
             choose = math.factorial(n) / (math.factorial(n - k) * math.factorial(k))
 
             dist1_a = exp_c13_abundance ** k
@@ -146,17 +167,15 @@ def estimate_carbon_numbers(parameters):
         max_prob2 = 0
         max_index2 = None
 
-        for index,prob in enumerate(dist1):
+        for index, prob in enumerate(dist1):
 
             if prob >= max_prob1:
-
                 max_prob1 = prob
                 max_index1 = index
 
-        for index,prob in enumerate(dist2):
+        for index, prob in enumerate(dist2):
 
             if prob > max_prob2:
-
                 max_prob2 = prob
                 max_index2 = index
 
@@ -175,14 +194,12 @@ def estimate_carbon_numbers(parameters):
 
 
 def create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters):
-
     exp_c13_abundance = parameters['exp_c13_abundance']
     exp_c12_abundance = 1 - exp_c13_abundance
 
     theoretical_dist = []
 
     for k in range(0, carbon_range + 1):
-
         choose = math.factorial(carbon_range) / (math.factorial(carbon_range - k) * math.factorial(k))
 
         dist1_a = exp_c13_abundance ** k
@@ -200,7 +217,6 @@ def create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
 
 
 def get_experimental_dist(carbon_range, carbon_width, mz_value, second_mz, scan_value, matrix_variables):
-
     peak_check_range = (carbon_range - carbon_width) / 2
 
     if mz_value < second_mz:
@@ -216,7 +232,11 @@ def get_experimental_dist(carbon_range, carbon_width, mz_value, second_mz, scan_
         return None, None, None
 
 
-def find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict, matrix_variables, parameters):
+def find_second_peak(count, mz_value, scan_index, max_inten, carbon_width_to_range_dict,
+                     carbon_number_to_mono_mass, matrix_variables, parameters):
+    if os.path.exists(path + str(count)):
+        shutil.rmtree(path + str(count))
+    os.mkdir(path + str(count))
 
     left_peak_exists = False
     left_check = mz_value - mz_constant_diff
@@ -236,7 +256,7 @@ def find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict
         if right_inten > max_inten * parameters['peak_check_threshold']:
             right_peak_exists = True
 
-    min_similarity = parameters['min_similarity_threshold']
+    min_similarity = parameters['min_similarity']
 
     found_mz_list = None
     found_intensity_list = None
@@ -288,20 +308,46 @@ def find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict
 
         for carbon_range in carbon_width_to_range_dict[carbon_width]:
 
-            mz_list, experimental_intensity_list, mz_index_list = get_experimental_dist(carbon_range, carbon_width, mz_value, second_mz, scan_index, matrix_variables)
+            mz_list, experimental_intensity_list, mz_index_list = get_experimental_dist(carbon_range, carbon_width,
+                                                                                        mz_value, second_mz,
+                                                                                        scan_index, matrix_variables)
 
             if mz_list is None:
                 continue
 
-            if not second_intensity in experimental_intensity_list:
+            if second_intensity not in experimental_intensity_list:
                 print "The second peak intensity was not found within the experimental distribution." \
                       "Check find_second_peak."
 
-            theoretical_dist = create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
-            similarity = curve_tools.get_similarity(experimental_intensity_list, theoretical_dist)
+            if carbon_range in carbon_number_to_mono_mass:
+                if min(mz_list) < min(carbon_number_to_mono_mass[carbon_range]) or min(mz_list > max(carbon_number_to_mono_mass[carbon_range])):
+                    continue
 
-            if similarity > min_similarity:
-                min_similarity = similarity
+            theoretical_dist = create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
+
+            norm_dot_product = get_norm_dot_product(experimental_intensity_list, theoretical_dist)
+            carbon_number_factor = get_carbon_number_factor(carbon_range, parameters)
+
+            if norm_dot_product < parameters['dot_product_filter']:
+                continue
+
+            inf_similarity = norm_dot_product * (1 - parameters['carbon_number_influence']) + (carbon_number_factor * parameters['carbon_number_influence'])
+
+            fig = plt.figure()
+            ax1 = fig.add_subplot(211)
+            for index, inten in enumerate(theoretical_dist):
+                plt.plot([mz_list[index], mz_list[index]], [0, inten])
+            ax1.set_title("Influenced Similarity: " + str(inf_similarity) + " | Theoretical")
+            ax2 = fig.add_subplot(212)
+            for index, inten in enumerate(experimental_intensity_list):
+                plt.plot([mz_list[index], mz_list[index]], [0, inten])
+            ax2.set_title("Dot Product: " + str(norm_dot_product) + " | Experimental")
+            plt.tight_layout()
+            plt.savefig(path + str(count) + '/' + str(mz_scale) + ' | ' + str(carbon_range))
+            plt.close()
+
+            if inf_similarity > min_similarity:
+                min_similarity = inf_similarity
 
                 found_mz_list = mz_list
                 found_intensity_list = experimental_intensity_list
@@ -310,20 +356,24 @@ def find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict
                 found_second_mz = second_mz
                 found_second_intensity = second_intensity
 
-            # fig = plt.figure()
-            # fig.add_subplot(211)
-            # plt.plot(mz_list, experimental_intensity_list, 'b')
-            # fig.add_subplot(212).set_title('Theoretical')
-            # plt.plot(mz_list, theoretical_dist, 'r')
-            # plt.suptitle(str(similarity))
-            # plt.tight_layout()
-            # plt.show()
-            # plt.close()
+                # fig = plt.figure()
+                # fig.add_subplot(211)
+                # plt.plot(mz_list, experimental_intensity_list, 'b')
+                # fig.add_subplot(212).set_title('Theoretical')
+                # plt.plot(mz_list, theoretical_dist, 'r')
+                # plt.suptitle(str(similarity))
+                # plt.tight_layout()
+                # plt.show()
+                # plt.close()
+
+    if found_mz_list is not None:
+        print min_similarity
 
     return found_mz_list, found_intensity_list, found_mz_index_list, found_second_mz, found_second_intensity
 
 
-def check_EIC(mz_list, intensity_list, bounded_inten_array, second_intensity, first_scan_boundary, second_scan_boundary, matrix_variables, parameters):
+def check_EIC(mz_list, intensity_list, bounded_inten_array, second_intensity, first_scan_boundary, second_scan_boundary,
+              matrix_variables, parameters):
 
     is_similar = True
 
@@ -331,18 +381,20 @@ def check_EIC(mz_list, intensity_list, bounded_inten_array, second_intensity, fi
     starting_index_list = []
     ending_index_list = []
 
+    similarity_list = []
+
     for index, mz in enumerate(mz_list):
 
         if intensity_list[index] > second_intensity * parameters['intensity_check_for_EIC']:
 
             int_mz = mz * parameters['mz_factor']
 
-            rt_array, inten_array, mz_start, mz_end = matrix_variables.construct_EIC(int_mz, first_scan_boundary, second_scan_boundary)
+            rt_array, inten_array, mz_start, mz_end = matrix_variables.construct_EIC(int_mz, first_scan_boundary,
+                                                                                     second_scan_boundary)
 
             similarity = curve_tools.get_similarity(bounded_inten_array, inten_array)
 
             if similarity < parameters['similarity_of_EIC_threshold']:
-
                 is_similar = False
                 break
 
@@ -350,34 +402,41 @@ def check_EIC(mz_list, intensity_list, bounded_inten_array, second_intensity, fi
             starting_index_list.append(mz_start)
             ending_index_list.append(mz_end)
 
+            similarity_list.append(similarity)
+
     if is_similar:
-        return inten_array_list, starting_index_list, ending_index_list
+        return inten_array_list, starting_index_list, ending_index_list, similarity_list
     else:
-        return None, None, None
+        return None, None, None, None
 
 
 def main():
     time_1 = time.time()
 
     parameters = {'exp_c13_abundance': 0.05,
-                  'absolute_intensity_thresh': 0.0,
+                  'absolute_intensity_thresh': 5000.0,
                   'mz_factor': 10000.0,
-                  'peak_range': [35, 2],
+                  'peak_range': [35, 3],
                   'peak_check_threshold': 0.95,
                   'scan_boundary': 20,
                   'mz_tolerance': 0.0005,
                   'peak_intensity_threshold': 5000,
-                  'gaussian_error_tolerance': 0.02,
+                  'gaussian_error_tolerance': 0.1,
                   'gaussian_intensity_percentage': 0.05,
-                  'min_similarity_threshold': 0.3,
+                  'dot_product_filter': 0.85,
+                  'carbon_number_parameter': 0.05,
+                  'carbon_number_influence': 0.5,
+                  'min_similarity': 0.5,
                   'low_boundary_range': 0.02,
                   'high_boundary_range': 0.1,
                   'intensity_check_for_EIC': 0.2,
-                  'similarity_of_EIC_threshold': 0.5,
+                  'similarity_of_EIC_threshold': 0.25,
                   'found_values_between_peaks_threshold': 0.67,
                   'extension_of_feature': 2}
 
     carbon_width_to_range_dict = estimate_carbon_numbers(parameters)
+
+    carbon_number_to_mono_mass = mono_mass.get_mono_mass_dict()
 
     input_dir = path + 'Data/'
 
@@ -419,8 +478,8 @@ def main():
                 second_scan_boundary = min(matrix_variables.int_matrix.shape[1] - 1, second_scan_boundary)
 
                 rt_array, inten_array, original_mz_start, original_mz_end = matrix_variables.construct_EIC(int_mz_value,
-                                                                                         first_scan_boundary,
-                                                                                         second_scan_boundary)
+                                                                                                           first_scan_boundary,
+                                                                                                           second_scan_boundary)
 
                 if len(rt_array) == 0 or sum(inten_array) == 0:
                     matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
@@ -457,7 +516,7 @@ def main():
                 bounded_inten_array = []
 
                 for index, rt in enumerate(rt_array):
-                    if rt > rt_boundaries[0] and rt < rt_boundaries[1]:
+                    if rt_boundaries[0] < rt < rt_boundaries[1]:
                         bounded_rt_array.append(rt)
                         bounded_inten_array.append(inten_array[index])
 
@@ -470,24 +529,37 @@ def main():
                     else:
                         continue
 
-                found_mz_list, found_intensity_list, found_mz_index_list, second_mz, second_intensity = find_second_peak(mz_value, scan_index, max_inten, carbon_width_to_range_dict, matrix_variables, parameters)
+                found_mz_list, found_intensity_list, found_mz_index_list, second_mz, second_intensity = find_second_peak(
+                    count, mz_value, scan_index, max_inten, carbon_width_to_range_dict, carbon_number_to_mono_mass,
+                    matrix_variables, parameters)
 
                 if found_mz_list is None:
                     matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
                     continue
 
-                intensity_array_list, starting_mz_list, ending_mz_list = check_EIC(found_mz_list, found_intensity_list, bounded_inten_array, second_intensity, first_scan_boundary, second_scan_boundary, matrix_variables, parameters)
+                intensity_array_list, starting_mz_list, ending_mz_list, similarity_list = check_EIC(found_mz_list,
+                                                                                                    found_intensity_list,
+                                                                                                    bounded_inten_array,
+                                                                                                    second_intensity,
+                                                                                                    first_scan_boundary,
+                                                                                                    second_scan_boundary,
+                                                                                                    matrix_variables,
+                                                                                                    parameters)
 
                 if intensity_array_list is None:
                     matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
                     continue
 
+                print similarity_list
+
                 chromatogram_title = 'Original: ' + str(mz_value) + ' | Expected: ' + str(second_mz)
                 feature_title = 'RT: ' + str(rt_of_max_inten) + ' | Scan Index: ' + str(scan_index)
 
-                plot_chromatogram(found_mz_list, mz_value, second_mz, bounded_rt_array, intensity_array_list, count, scan_index, chromatogram_title, feature_title, matrix_variables, parameters)
+                plot_chromatogram(found_mz_list, mz_value, second_mz, bounded_rt_array, intensity_array_list, count,
+                                  scan_index, chromatogram_title, feature_title, matrix_variables, parameters)
 
-                remove_all_values(starting_mz_list, ending_mz_list, first_scan_boundary, second_scan_boundary, matrix_variables)
+                remove_all_values(starting_mz_list, ending_mz_list, first_scan_boundary, second_scan_boundary,
+                                  matrix_variables)
 
                 print count
                 count = count + 1
