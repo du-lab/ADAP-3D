@@ -1,5 +1,6 @@
 import math
 import os
+import glob
 import shutil
 import time
 
@@ -216,63 +217,91 @@ def create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
     return theoretical_dist
 
 
-def get_experimental_dist(carbon_range, carbon_width, mz_value, second_mz, scan_value, matrix_variables):
+def get_experimental_dist(carbon_range, carbon_width, mz_value, mz_scale, data_point_dict, parameters):
+
     peak_check_range = (carbon_range - carbon_width) / 2
 
-    if mz_value < second_mz:
-        start_mz = mz_value - (peak_check_range * mz_constant_diff)
-        return matrix_variables.check_for_experimental(start_mz, carbon_range, scan_value, lower_mz=True)
+    number_of_found_points = 0
 
-    elif mz_value > second_mz:
-        start_mz = mz_value + (peak_check_range * mz_constant_diff)
-        return matrix_variables.check_for_experimental(start_mz, carbon_range, scan_value, lower_mz=False)
+    mz_list = []
+    experimental_intensity_list = []
+
+    if mz_scale < 0:
+        start = mz_scale - peak_check_range
+        end = 0 + peak_check_range
+
+    elif mz_scale > 0:
+        start = 0 - peak_check_range
+        end = mz_scale + peak_check_range
 
     else:
         "This really should not be a problem."
         return None, None, None
 
+    for scalar in range(start, end + 1):
+
+        data_point = data_point_dict[scalar]
+
+        if data_point is None:
+            mz_list.append(mz_value + (scalar * mz_constant_diff))
+            experimental_intensity_list.append(0.0)
+
+        else:
+            mz_list.append(data_point.mz)
+            experimental_intensity_list.append(data_point.intensity)
+
+            number_of_found_points = number_of_found_points + 1
+
+    if number_of_found_points / float(carbon_range + 1) <= parameters['found_values_between_peaks_threshold']:
+
+        return None, None
+
+    return mz_list, experimental_intensity_list
+
+
+def get_data_point_dict(mz_value, scan_index, matrix_variables, parameters):
+
+    max_range = parameters['peak_range'][0]
+
+    data_point_dict = {}
+
+    for mz_scale in range(-max_range, max_range + 1):
+
+        expected_value = mz_value + (mz_scale * mz_constant_diff)
+
+        found_data_point = matrix_variables.check_existence(expected_value, scan_index, need_mz_index=False)
+
+        data_point_dict[mz_scale] = found_data_point
+
+    return data_point_dict
+
+
 
 def find_second_peak(count, mz_value, scan_index, max_inten, carbon_width_to_range_dict,
                      carbon_number_to_mono_mass, matrix_variables, parameters):
-    if os.path.exists(path + str(count)):
-        shutil.rmtree(path + str(count))
-    os.mkdir(path + str(count))
 
-    left_peak_exists = False
-    left_check = mz_value - mz_constant_diff
-    left_point = matrix_variables.check_existence(left_check, scan_index, need_mz_index=False)
-
-    right_peak_exists = False
-    right_check = mz_value + mz_constant_diff
-    right_point = matrix_variables.check_existence(right_check, scan_index, need_mz_index=False)
-
-    if left_point is not None:
-        left_inten = left_point.intensity
-        if left_inten > max_inten * parameters['peak_check_threshold']:
-            left_peak_exists = True
-
-    if right_point is not None:
-        right_inten = right_point.intensity
-        if right_inten > max_inten * parameters['peak_check_threshold']:
-            right_peak_exists = True
+    if os.path.exists(path + 'theoretical_distributions/' + str(count)):
+        shutil.rmtree(path + 'theoretical_distributions/' + str(count))
+    os.mkdir(path + 'theoretical_distributions/' + str(count))
 
     min_similarity = parameters['min_similarity']
 
     found_mz_list = None
     found_intensity_list = None
-    found_mz_index_list = None
 
     found_second_mz = None
     found_second_intensity = None
 
-    for mz_scale in range(max(carbon_width_to_range_dict) * -1, max(carbon_width_to_range_dict) + 1):
+    data_point_dict = get_data_point_dict(mz_value, scan_index, matrix_variables, parameters)
 
-        if mz_scale in range((parameters['peak_range'][1] * -1) + 1, parameters['peak_range'][1]):
+    min_range = parameters['peak_range'][1]
+
+    for mz_scale in range(-max(carbon_width_to_range_dict), max(carbon_width_to_range_dict) + 1):
+
+        if mz_scale in range(-min_range, min_range + 1):
             continue
 
-        expected_value = mz_value + (mz_scale * mz_constant_diff)
-
-        found_data_point = matrix_variables.check_existence(expected_value, scan_index, need_mz_index=False)
+        found_data_point = data_point_dict[mz_scale]
 
         if found_data_point is None:
             continue
@@ -282,23 +311,32 @@ def find_second_peak(count, mz_value, scan_index, max_inten, carbon_width_to_ran
         second_intensity = found_data_point.intensity
         second_mz = found_data_point.mz
 
+        if carbon_width > parameters['peak_range'][1]:
+            if len(carbon_width_to_range_dict[carbon_width - 1]) > 1:
+
+                if mz_scale < 0:
+                    left_check = mz_value - mz_constant_diff
+                    left_point = matrix_variables.check_existence(left_check, scan_index, need_mz_index=False)
+
+                    if left_point is not None:
+                        left_inten = left_point.intensity
+                        if left_inten > max_inten * parameters['peak_check_threshold']:
+                            carbon_width = carbon_width - 1
+
+                if mz_scale > 0:
+                    right_check = mz_value + mz_constant_diff
+                    right_point = matrix_variables.check_existence(right_check, scan_index, need_mz_index=False)
+
+                    if right_point is not None:
+                        right_inten = right_point.intensity
+                        if right_inten > max_inten * parameters['peak_check_threshold']:
+                            carbon_width = carbon_width - 1
+
         if mz_scale < 0:
-            if left_peak_exists:
-                try:
-                    if len(carbon_width_to_range_dict[carbon_width - 1]) > 1:
-                        carbon_width = carbon_width - 1
-                except KeyError:
-                    pass
             first_ratio = second_intensity / (max_inten + second_intensity)
             second_ratio = max_inten / (max_inten + second_intensity)
 
         elif mz_scale > 0:
-            if right_peak_exists:
-                try:
-                    if len(carbon_width_to_range_dict[carbon_width - 1]) > 1:
-                        carbon_width = carbon_width - 1
-                except KeyError:
-                    pass
             first_ratio = max_inten / (max_inten + second_intensity)
             second_ratio = second_intensity / (max_inten + second_intensity)
 
@@ -308,9 +346,7 @@ def find_second_peak(count, mz_value, scan_index, max_inten, carbon_width_to_ran
 
         for carbon_range in carbon_width_to_range_dict[carbon_width]:
 
-            mz_list, experimental_intensity_list, mz_index_list = get_experimental_dist(carbon_range, carbon_width,
-                                                                                        mz_value, second_mz,
-                                                                                        scan_index, matrix_variables)
+            mz_list, experimental_intensity_list= get_experimental_dist(carbon_range, carbon_width, mz_value, mz_scale, data_point_dict, parameters)
 
             if mz_list is None:
                 continue
@@ -343,7 +379,7 @@ def find_second_peak(count, mz_value, scan_index, max_inten, carbon_width_to_ran
                 plt.plot([mz_list[index], mz_list[index]], [0, inten])
             ax2.set_title("Dot Product: " + str(norm_dot_product) + " | Experimental")
             plt.tight_layout()
-            plt.savefig(path + str(count) + '/' + str(mz_scale) + ' | ' + str(carbon_range))
+            plt.savefig(path + 'theoretical_distributions/' + str(count) + '/' + str(mz_scale) + ' | ' + str(carbon_range))
             plt.close()
 
             if inf_similarity > min_similarity:
@@ -351,7 +387,6 @@ def find_second_peak(count, mz_value, scan_index, max_inten, carbon_width_to_ran
 
                 found_mz_list = mz_list
                 found_intensity_list = experimental_intensity_list
-                found_mz_index_list = mz_index_list
 
                 found_second_mz = second_mz
                 found_second_intensity = second_intensity
@@ -369,7 +404,7 @@ def find_second_peak(count, mz_value, scan_index, max_inten, carbon_width_to_ran
     if found_mz_list is not None:
         print min_similarity
 
-    return found_mz_list, found_intensity_list, found_mz_index_list, found_second_mz, found_second_intensity
+    return found_mz_list, found_intensity_list, found_second_mz, found_second_intensity
 
 
 def check_EIC(mz_list, intensity_list, bounded_inten_array, second_intensity, first_scan_boundary, second_scan_boundary,
@@ -419,19 +454,19 @@ def main():
                   'peak_range': [35, 3],
                   'peak_check_threshold': 0.95,
                   'scan_boundary': 20,
-                  'mz_tolerance': 0.0005,
-                  'peak_intensity_threshold': 5000,
+                  'mz_tolerance': 0.001,
+                  'peak_intensity_threshold': 10000,
                   'gaussian_error_tolerance': 0.1,
                   'gaussian_intensity_percentage': 0.05,
-                  'dot_product_filter': 0.85,
+                  'dot_product_filter': 0.95,
                   'carbon_number_parameter': 0.05,
                   'carbon_number_influence': 0.5,
                   'min_similarity': 0.5,
                   'low_boundary_range': 0.02,
-                  'high_boundary_range': 0.1,
+                  'high_boundary_range': 0.25,
                   'intensity_check_for_EIC': 0.2,
                   'similarity_of_EIC_threshold': 0.25,
-                  'found_values_between_peaks_threshold': 0.67,
+                  'found_values_between_peaks_threshold': 0.8,
                   'extension_of_feature': 2}
 
     carbon_width_to_range_dict = estimate_carbon_numbers(parameters)
@@ -444,6 +479,11 @@ def main():
         shutil.rmtree(path + 'comparing_peaks_results')
 
     os.mkdir(path + 'comparing_peaks_results')
+
+    if os.path.exists(path + 'theoretical_distributions'):
+        shutil.rmtree(path + 'theoretical_distributions')
+
+    os.mkdir(path + 'theoretical_distributions')
 
     for file_name in os.listdir(input_dir):
         if file_name == '.DS_Store':
@@ -529,7 +569,7 @@ def main():
                     else:
                         continue
 
-                found_mz_list, found_intensity_list, found_mz_index_list, second_mz, second_intensity = find_second_peak(
+                found_mz_list, found_intensity_list, second_mz, second_intensity = find_second_peak(
                     count, mz_value, scan_index, max_inten, carbon_width_to_range_dict, carbon_number_to_mono_mass,
                     matrix_variables, parameters)
 

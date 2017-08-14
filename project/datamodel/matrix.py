@@ -1,4 +1,5 @@
 from scipy.sparse import dok_matrix
+from bisect import bisect_left
 import efficient_find_next_max
 import pylab as pl
 import data_point
@@ -143,7 +144,9 @@ class Matrix():
         mz_end_found = False
         mz_start_found = False
 
-        for unique_mz in self.unique_mz_list:
+        index = bisect_left(self.unique_mz_list, first_mz_boundary)
+
+        for unique_mz in self.unique_mz_list[index:]:
             if unique_mz <= second_mz_boundary:
                 if unique_mz >= first_mz_boundary:
                     for scan_index in range(first_scan_boundary, second_scan_boundary + 1):
@@ -259,7 +262,6 @@ class Matrix():
         else:
             return True, int_inbetween_mz_value_list
 
-
     def check_existence(self, mz_value, scan_index, need_mz_index):
 
         int_mz_value = mz_value * self.parameters['mz_factor']
@@ -273,7 +275,9 @@ class Matrix():
         found_data_point = None
         found_mz_index = None
 
-        for unique_mz in self.unique_mz_list:
+        index = bisect_left(self.unique_mz_list, first_mz_bound)
+
+        for unique_mz in self.unique_mz_list[index:]:
 
             if unique_mz > first_mz_bound:
 
@@ -337,7 +341,7 @@ class Matrix():
 
                 number_of_found_points = number_of_found_points + 1
 
-        if number_of_found_points / (carbon_range + 1) < self.parameters['found_values_between_peaks_threshold']:
+        if number_of_found_points / float(carbon_range + 1) <= self.parameters['found_values_between_peaks_threshold']:
 
             return None, None, None
 
