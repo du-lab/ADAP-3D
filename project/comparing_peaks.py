@@ -3,6 +3,7 @@ import os
 import glob
 import shutil
 import time
+import csv
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,9 +13,25 @@ from iso_dist_generator import get_carbon_num_to_mono_mass as mono_mass
 from datamodel import matrix
 from easyIOmassspec import easyio
 from generalcurvetools import curve_tools
+from bisect import bisect_left
 
 path = '/Users/jasonzhou/Desktop/Working Folder/'
 mz_constant_diff = 1.00335
+
+
+def export_data(writer, mz_list, rt, first_ratio, second_ratio):
+
+    row_to_write = []
+
+    monoisotopic_mass = str(max(mz_list))
+    ratio = str(first_ratio) + ':' + str(second_ratio)
+
+    row_to_write.append(monoisotopic_mass)
+    row_to_write.append(str(rt))
+    row_to_write.append(mz_list)
+    row_to_write.append(ratio)
+
+    writer.writerows([row_to_write])
 
 
 def plot_chromatogram(found_mz_list, mz_value, second_mz, bounded_rt_array, intensity_array_list, count,
@@ -106,8 +123,10 @@ def find_mz_error(mz_value, mz_list, greater_mz, scan_index, matrix_variables):
 
 def remove_all_values(starting_mz_list, ending_mz_list, first_scan_boundary, second_scan_boundary, matrix_variables):
     for index, starting_index in enumerate(starting_mz_list):
+        if starting_index is None:
+            continue
         ending_index = ending_mz_list[index]
-        matrix_variables.remove_cur_max(starting_index, ending_index + 1, first_scan_boundary, second_scan_boundary + 1)
+        matrix_variables.remove_cur_max(starting_index, ending_index, first_scan_boundary, second_scan_boundary + 1)
 
 
 def gaussian(x, a, b, c):
@@ -217,7 +236,7 @@ def create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
     return theoretical_dist
 
 
-def get_experimental_dist(carbon_range, carbon_width, mz_value, mz_scale, data_point_dict, parameters):
+def get_experimental_dist(carbon_range, carbon_width, mz_value, scan_index, data_point_dict, parameters, matrix_variables, neg):
 
     peak_check_range = (carbon_range - carbon_width) / 2
 
@@ -226,59 +245,93 @@ def get_experimental_dist(carbon_range, carbon_width, mz_value, mz_scale, data_p
     mz_list = []
     experimental_intensity_list = []
 
-    if mz_scale < 0:
-        start = mz_scale - peak_check_range
-        end = 0 + peak_check_range
-
-    elif mz_scale > 0:
-        start = 0 - peak_check_range
-        end = mz_scale + peak_check_range
-
-    else:
-        "This really should not be a problem."
-        return None, None, None
+    start = 0 - peak_check_range
+    end = carbon_width + peak_check_range
 
     for scalar in range(start, end + 1):
 
-        data_point = data_point_dict[scalar]
+        if scalar not in data_point_dict:
+            if scalar in range(start, carbon_width + 1):
+                data_point = None
+            else:
+                if neg:
+                    expected_mz = mz_value - (scalar * mz_constant_diff)
+                else:
+                    expected_mz = mz_value + (scalar * mz_constant_diff)
+
+                data_point = matrix_variables.check_existence(expected_mz, scan_index, need_mz_index=False)
+
+        else:
+            data_point = data_point_dict[scalar]
 
         if data_point is None:
-            mz_list.append(mz_value + (scalar * mz_constant_diff))
+            if neg:
+                mz_list.append(mz_value - (scalar * mz_constant_diff))
+            else:
+                mz_list.append(mz_value + (scalar) * mz_constant_diff)
             experimental_intensity_list.append(0.0)
 
         else:
-            mz_list.append(data_point.mz)
-            experimental_intensity_list.append(data_point.intensity)
+            if neg:
+                mz_list.insert(0, data_point.mz)
+                experimental_intensity_list.insert(0, data_point.intensity)
+            else:
+                mz_list.append(data_point.mz)
+                experimental_intensity_list.append(data_point.intensity)
 
             number_of_found_points = number_of_found_points + 1
 
     if number_of_found_points / float(carbon_range + 1) <= parameters['found_values_between_peaks_threshold']:
-
         return None, None
 
     return mz_list, experimental_intensity_list
 
 
-def get_data_point_dict(mz_value, scan_index, matrix_variables, parameters):
+def get_data_point_dicts(mz_value, scan_index, matrix_variables, carbon_width_to_range_dict):
 
-    max_range = parameters['peak_range'][0]
+    max_range = max(carbon_width_to_range_dict)
+    min_range = min(carbon_width_to_range_dict)
 
-    data_point_dict = {}
+    neg_data_point_dict = {}
+    pos_data_point_dict = {}
 
-    for mz_scale in range(-max_range, max_range + 1):
+    for mz_scale in range(0, max_range + 1):
 
-        expected_value = mz_value + (mz_scale * mz_constant_diff)
+        neg_expected_value = mz_value - (mz_scale * mz_constant_diff)
+        pos_expected_value = mz_value + (mz_scale * mz_constant_diff)
 
-        found_data_point = matrix_variables.check_existence(expected_value, scan_index, need_mz_index=False)
+        neg_found_data_point = matrix_variables.check_existence(neg_expected_value, scan_index, need_mz_index=False)
+        pos_found_data_point = matrix_variables.check_existence(pos_expected_value, scan_index, need_mz_index=False)
 
-        data_point_dict[mz_scale] = found_data_point
+        if neg_found_data_point is not None:
+            neg_data_point_dict[mz_scale] = neg_found_data_point
 
-    return data_point_dict
+        if pos_found_data_point is not None:
+            pos_data_point_dict[mz_scale] = pos_found_data_point
 
+    if max(neg_data_point_dict) <= min_range:
+        neg_data_point_dict = None
+
+    if max(pos_data_point_dict) <= min_range:
+        pos_data_point_dict = None
+
+    return neg_data_point_dict, pos_data_point_dict
+
+
+def get_similarity_and_EIC(mz, bounded_inten_array, first_scan_boundary, second_scan_boundary, matrix_variables, parameters):
+
+    int_mz = mz * parameters['mz_factor']
+
+    rt_array, intensity_array, mz_start, mz_end = matrix_variables.construct_EIC(int_mz, first_scan_boundary, second_scan_boundary)
+
+    similarity = curve_tools.get_similarity(bounded_inten_array, intensity_array)
+
+    return similarity, intensity_array, mz_start, mz_end
 
 
 def find_second_peak(count, mz_value, scan_index, max_inten, carbon_width_to_range_dict,
-                     carbon_number_to_mono_mass, matrix_variables, parameters):
+                     carbon_number_to_mono_mass, bounded_inten_array, first_scan_boundary,
+                     second_scan_boundary, matrix_variables, parameters):
 
     if os.path.exists(path + 'theoretical_distributions/' + str(count)):
         shutil.rmtree(path + 'theoretical_distributions/' + str(count))
@@ -292,157 +345,226 @@ def find_second_peak(count, mz_value, scan_index, max_inten, carbon_width_to_ran
     found_second_mz = None
     found_second_intensity = None
 
-    data_point_dict = get_data_point_dict(mz_value, scan_index, matrix_variables, parameters)
+    found_first_ratio = None
+    found_second_ratio = None
 
-    min_range = parameters['peak_range'][1]
+    found_inten_array_list = None
+    found_starting_index_list = None
+    found_ending_index_list = None
 
-    for mz_scale in range(-max(carbon_width_to_range_dict), max(carbon_width_to_range_dict) + 1):
+    neg_data_point_dict, pos_data_point_dict = get_data_point_dicts(mz_value, scan_index, matrix_variables, carbon_width_to_range_dict)
 
-        if mz_scale in range(-min_range, min_range + 1):
-            continue
+    if neg_data_point_dict is not None:
 
-        found_data_point = data_point_dict[mz_scale]
+        neg_similarity_to_intensity_dict = {}
+        neg_intensity_array_list = []
+        neg_starting_index_list = []
+        neg_ending_index_list = []
 
-        if found_data_point is None:
-            continue
+        for mz_scale in neg_data_point_dict:
 
-        carbon_width = abs(mz_scale)
+            neg_found_data_point = neg_data_point_dict[mz_scale]
 
-        second_intensity = found_data_point.intensity
-        second_mz = found_data_point.mz
+            intensity = neg_found_data_point.intensity
+            mz = neg_found_data_point.mz
 
-        if carbon_width > parameters['peak_range'][1]:
-            if len(carbon_width_to_range_dict[carbon_width - 1]) > 1:
+            similarity, intensity_array, starting_index, ending_index = get_similarity_and_EIC(mz, bounded_inten_array,
+                                                                                               first_scan_boundary,
+                                                                                               second_scan_boundary,
+                                                                                               matrix_variables,
+                                                                                               parameters)
 
-                if mz_scale < 0:
-                    left_check = mz_value - mz_constant_diff
-                    left_point = matrix_variables.check_existence(left_check, scan_index, need_mz_index=False)
+            neg_similarity_to_intensity_dict[similarity] = intensity
 
-                    if left_point is not None:
-                        left_inten = left_point.intensity
-                        if left_inten > max_inten * parameters['peak_check_threshold']:
-                            carbon_width = carbon_width - 1
+            good_similarity = True
 
-                if mz_scale > 0:
-                    right_check = mz_value + mz_constant_diff
-                    right_point = matrix_variables.check_existence(right_check, scan_index, need_mz_index=False)
+            for similarity in neg_similarity_to_intensity_dict:
+                if similarity < parameters['similarity_of_EIC_threshold']:
+                    if neg_similarity_to_intensity_dict[similarity] > intensity * parameters['intensity_check_for_EIC']:
+                        good_similarity = False
 
-                    if right_point is not None:
-                        right_inten = right_point.intensity
-                        if right_inten > max_inten * parameters['peak_check_threshold']:
-                            carbon_width = carbon_width - 1
-
-        if mz_scale < 0:
-            first_ratio = second_intensity / (max_inten + second_intensity)
-            second_ratio = max_inten / (max_inten + second_intensity)
-
-        elif mz_scale > 0:
-            first_ratio = max_inten / (max_inten + second_intensity)
-            second_ratio = second_intensity / (max_inten + second_intensity)
-
-        else:
-            print "This really should not be a problem."
-            continue
-
-        for carbon_range in carbon_width_to_range_dict[carbon_width]:
-
-            mz_list, experimental_intensity_list= get_experimental_dist(carbon_range, carbon_width, mz_value, mz_scale, data_point_dict, parameters)
-
-            if mz_list is None:
+            if not good_similarity:
                 continue
 
-            if second_intensity not in experimental_intensity_list:
-                print "The second peak intensity was not found within the experimental distribution." \
-                      "Check find_second_peak."
+            neg_intensity_array_list.append(intensity_array)
+            neg_starting_index_list.append(starting_index)
+            neg_ending_index_list.append(ending_index)
 
-            if carbon_range in carbon_number_to_mono_mass:
-                if min(mz_list) < min(carbon_number_to_mono_mass[carbon_range]) or min(mz_list > max(carbon_number_to_mono_mass[carbon_range])):
+            carbon_width = mz_scale
+
+            if carbon_width < parameters['peak_range'][1]:
+                continue
+
+            first_ratio = intensity / (max_inten + intensity)
+            second_ratio = max_inten / (max_inten + intensity)
+
+            for carbon_range in carbon_width_to_range_dict[carbon_width]:
+
+                mz_list, experimental_intensity_list = get_experimental_dist(carbon_range, carbon_width, mz_value, scan_index, neg_data_point_dict, parameters, matrix_variables, neg=True)
+
+                if mz_list is None:
                     continue
 
-            theoretical_dist = create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
+                if intensity not in experimental_intensity_list:
+                    print "The second peak intensity was not found within the experimental distribution. " \
+                          "Check find_second_peak."
 
-            norm_dot_product = get_norm_dot_product(experimental_intensity_list, theoretical_dist)
-            carbon_number_factor = get_carbon_number_factor(carbon_range, parameters)
+                if carbon_range in carbon_number_to_mono_mass:
+                    if min(mz_list) < min(carbon_number_to_mono_mass[carbon_range]) or max(mz_list) > max(carbon_number_to_mono_mass[carbon_range]):
+                        continue
 
-            if norm_dot_product < parameters['dot_product_filter']:
+                theoretical_dist = create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
+
+                norm_dot_product = get_norm_dot_product(experimental_intensity_list, theoretical_dist)
+                carbon_number_factor = get_carbon_number_factor(carbon_range, parameters)
+
+                if norm_dot_product < parameters['dot_product_filter']:
+                    continue
+
+                inf_similarity = norm_dot_product * (1 - parameters['carbon_number_influence']) + (carbon_number_factor * parameters['carbon_number_influence'])
+
+                fig = plt.figure()
+                ax1 = fig.add_subplot(211)
+                for index, inten in enumerate(theoretical_dist):
+                    plt.plot([mz_list[index], mz_list[index]], [0, inten])
+                ax1.set_title("Influenced Similarity: " + str(inf_similarity) + " | Theoretical")
+                ax2 = fig.add_subplot(212)
+                for index, inten in enumerate(experimental_intensity_list):
+                    plt.plot([mz_list[index], mz_list[index]], [0, inten])
+                ax2.set_title("Dot Product: " + str(norm_dot_product) + " | Experimental")
+                plt.tight_layout()
+                plt.savefig(path + 'theoretical_distributions/' + str(count) + '/' + str(mz_scale) + ' | ' + str(carbon_range))
+                plt.close()
+
+                if inf_similarity > min_similarity:
+
+                    min_similarity = inf_similarity
+
+                    found_mz_list = mz_list
+                    found_intensity_list = experimental_intensity_list
+
+                    found_second_mz = mz
+                    found_second_intensity = intensity
+
+                    found_first_ratio = first_ratio
+                    found_second_ratio = second_ratio
+
+                    found_inten_array_list = neg_intensity_array_list
+                    found_starting_index_list = neg_starting_index_list
+                    found_ending_index_list = neg_ending_index_list
+
+    if pos_data_point_dict is not None:
+
+        pos_similarity_to_intensity_dict = {}
+        pos_intensity_array_list = []
+        pos_starting_index_list = []
+        pos_ending_index_list = []
+
+        for mz_scale in pos_data_point_dict:
+
+            pos_found_data_point = pos_data_point_dict[mz_scale]
+
+            intensity = pos_found_data_point.intensity
+            mz = pos_found_data_point.mz
+
+            similarity, intensity_array, starting_index, ending_index = get_similarity_and_EIC(mz, bounded_inten_array,
+                                                                                               first_scan_boundary,
+                                                                                               second_scan_boundary,
+                                                                                               matrix_variables,
+                                                                                               parameters)
+
+            pos_similarity_to_intensity_dict[similarity] = intensity
+
+            good_similarity = True
+
+            for similarity in pos_similarity_to_intensity_dict:
+                if similarity < parameters['similarity_of_EIC_threshold']:
+                    if pos_similarity_to_intensity_dict[similarity] > intensity * parameters['intensity_check_for_EIC']:
+                        good_similarity = False
+
+            if not good_similarity:
                 continue
 
-            inf_similarity = norm_dot_product * (1 - parameters['carbon_number_influence']) + (carbon_number_factor * parameters['carbon_number_influence'])
+            pos_intensity_array_list.append(intensity_array)
+            pos_starting_index_list.append(starting_index)
+            pos_ending_index_list.append(ending_index)
 
-            fig = plt.figure()
-            ax1 = fig.add_subplot(211)
-            for index, inten in enumerate(theoretical_dist):
-                plt.plot([mz_list[index], mz_list[index]], [0, inten])
-            ax1.set_title("Influenced Similarity: " + str(inf_similarity) + " | Theoretical")
-            ax2 = fig.add_subplot(212)
-            for index, inten in enumerate(experimental_intensity_list):
-                plt.plot([mz_list[index], mz_list[index]], [0, inten])
-            ax2.set_title("Dot Product: " + str(norm_dot_product) + " | Experimental")
-            plt.tight_layout()
-            plt.savefig(path + 'theoretical_distributions/' + str(count) + '/' + str(mz_scale) + ' | ' + str(carbon_range))
-            plt.close()
+            carbon_width = mz_scale
 
-            if inf_similarity > min_similarity:
-                min_similarity = inf_similarity
+            if carbon_width < parameters['peak_range'][1]:
+                continue
 
-                found_mz_list = mz_list
-                found_intensity_list = experimental_intensity_list
+            first_ratio = max_inten / (max_inten + intensity)
+            second_ratio = intensity / (max_inten + intensity)
 
-                found_second_mz = second_mz
-                found_second_intensity = second_intensity
+            for carbon_range in carbon_width_to_range_dict[carbon_width]:
 
-                # fig = plt.figure()
-                # fig.add_subplot(211)
-                # plt.plot(mz_list, experimental_intensity_list, 'b')
-                # fig.add_subplot(212).set_title('Theoretical')
-                # plt.plot(mz_list, theoretical_dist, 'r')
-                # plt.suptitle(str(similarity))
-                # plt.tight_layout()
-                # plt.show()
-                # plt.close()
+                mz_list, experimental_intensity_list = get_experimental_dist(carbon_range, carbon_width, mz_value,
+                                                                             scan_index, pos_data_point_dict,
+                                                                             parameters, matrix_variables, neg=False)
+
+                if mz_list is None:
+                    continue
+
+                if intensity not in experimental_intensity_list:
+                    print "The second peak intensity was not found within the experimental distribution. " \
+                          "Check find_second_peak."
+
+                if carbon_range in carbon_number_to_mono_mass:
+                    if min(mz_list) < min(carbon_number_to_mono_mass[carbon_range]) or min(mz_list) > max(carbon_number_to_mono_mass[carbon_range]):
+                        continue
+
+                theoretical_dist = create_theoretical_dist(carbon_range, first_ratio, second_ratio, parameters)
+
+                norm_dot_product = get_norm_dot_product(experimental_intensity_list, theoretical_dist)
+                carbon_number_factor = get_carbon_number_factor(carbon_range, parameters)
+
+                if norm_dot_product < parameters['dot_product_filter']:
+                    continue
+
+                inf_similarity = norm_dot_product * (1 - parameters['carbon_number_influence']) + (carbon_number_factor * parameters['carbon_number_influence'])
+
+                fig = plt.figure()
+                ax1 = fig.add_subplot(211)
+                for index, inten in enumerate(theoretical_dist):
+                    plt.plot([mz_list[index], mz_list[index]], [0, inten])
+                ax1.set_title("Influenced Similarity: " + str(inf_similarity) + " | Theoretical")
+                ax2 = fig.add_subplot(212)
+                for index, inten in enumerate(experimental_intensity_list):
+                    plt.plot([mz_list[index], mz_list[index]], [0, inten])
+                ax2.set_title("Dot Product: " + str(norm_dot_product) + " | Experimental")
+                plt.tight_layout()
+                plt.savefig(
+                    path + 'theoretical_distributions/' + str(count) + '/' + str(mz_scale) + ' | ' + str(carbon_range))
+                plt.close()
+
+                if inf_similarity > min_similarity:
+
+                    min_similarity = inf_similarity
+
+                    found_mz_list = mz_list
+                    found_intensity_list = experimental_intensity_list
+
+                    found_second_mz = mz
+                    found_second_intensity = intensity
+
+                    found_first_ratio = first_ratio
+                    found_second_ratio = second_ratio
+
+                    found_inten_array_list = pos_intensity_array_list
+                    found_starting_index_list = pos_starting_index_list
+                    found_ending_index_list = pos_ending_index_list
+
+    if len(glob.glob(path + 'theoretical_distributions/' + str(count) + '/*')) == 0:
+        shutil.rmtree(path + 'theoretical_distributions/' + str(count))
 
     if found_mz_list is not None:
         print min_similarity
 
-    return found_mz_list, found_intensity_list, found_second_mz, found_second_intensity
+    return found_mz_list, found_intensity_list, found_second_mz, found_second_intensity, found_first_ratio, found_second_ratio, found_inten_array_list, found_starting_index_list, found_ending_index_list
 
 
-def check_EIC(mz_list, intensity_list, bounded_inten_array, second_intensity, first_scan_boundary, second_scan_boundary,
-              matrix_variables, parameters):
 
-    is_similar = True
-
-    inten_array_list = []
-    starting_index_list = []
-    ending_index_list = []
-
-    similarity_list = []
-
-    for index, mz in enumerate(mz_list):
-
-        if intensity_list[index] > second_intensity * parameters['intensity_check_for_EIC']:
-
-            int_mz = mz * parameters['mz_factor']
-
-            rt_array, inten_array, mz_start, mz_end = matrix_variables.construct_EIC(int_mz, first_scan_boundary,
-                                                                                     second_scan_boundary)
-
-            similarity = curve_tools.get_similarity(bounded_inten_array, inten_array)
-
-            if similarity < parameters['similarity_of_EIC_threshold']:
-                is_similar = False
-                break
-
-            inten_array_list.append(inten_array)
-            starting_index_list.append(mz_start)
-            ending_index_list.append(mz_end)
-
-            similarity_list.append(similarity)
-
-    if is_similar:
-        return inten_array_list, starting_index_list, ending_index_list, similarity_list
-    else:
-        return None, None, None, None
 
 
 def main():
@@ -456,17 +578,17 @@ def main():
                   'scan_boundary': 20,
                   'mz_tolerance': 0.001,
                   'peak_intensity_threshold': 10000,
-                  'gaussian_error_tolerance': 0.1,
+                  'gaussian_error_tolerance': 0.15,
                   'gaussian_intensity_percentage': 0.05,
                   'dot_product_filter': 0.95,
                   'carbon_number_parameter': 0.05,
                   'carbon_number_influence': 0.5,
                   'min_similarity': 0.5,
                   'low_boundary_range': 0.02,
-                  'high_boundary_range': 0.25,
+                  'high_boundary_range': 0.5,
                   'intensity_check_for_EIC': 0.2,
-                  'similarity_of_EIC_threshold': 0.25,
-                  'found_values_between_peaks_threshold': 0.8,
+                  'similarity_of_EIC_threshold': 0.4,
+                  'found_values_between_peaks_threshold': 0.5,
                   'extension_of_feature': 2}
 
     carbon_width_to_range_dict = estimate_carbon_numbers(parameters)
@@ -485,9 +607,30 @@ def main():
 
     os.mkdir(path + 'theoretical_distributions')
 
+    output_file = path + 'results'
+
+    if os.path.exists(output_file):
+        shutil.rmtree(output_file)
+
+    os.mkdir(output_file)
+
     for file_name in os.listdir(input_dir):
         if file_name == '.DS_Store':
             continue
+
+        unique_output_file = output_file + '/' + file_name
+
+        if os.path.exists(unique_output_file):
+            shutil.rmtree(unique_output_file)
+
+        os.mkdir(unique_output_file)
+
+        results_file = unique_output_file + '/results.csv'
+        output = open(results_file, 'wb')
+        writer = csv.writer(output)
+
+        column_names = [['monoisotopic_mass', 'retention_time', 'm/z list', 'case_to_control']]
+        writer.writerows(column_names)
 
         df_str = input_dir + file_name
         dfr = easyio.DataFileReader(df_str, False)
@@ -522,7 +665,7 @@ def main():
                                                                                                            second_scan_boundary)
 
                 if len(rt_array) == 0 or sum(inten_array) == 0:
-                    matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
+                    matrix_variables.remove_cur_max(mz_index, mz_index, scan_index, scan_index)
                     continue
 
                 try:
@@ -534,7 +677,7 @@ def main():
                                            absolute_sigma=False)
 
                 except RuntimeError:
-                    matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
+                    matrix_variables.remove_cur_max(mz_index, mz_index, scan_index, scan_index)
                     continue
 
                 gaussian_values = gaussian(rt_array, max_inten, rt_of_max_inten, popt[2])
@@ -543,63 +686,44 @@ def main():
                 norm_error = error / (max(inten_array) ** 2)
 
                 if norm_error > parameters['gaussian_error_tolerance']:
-                    matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
+                    matrix_variables.remove_cur_max(mz_index, mz_index, scan_index, scan_index)
                     continue
 
                 rt_boundaries, boundary_width = calc_width_of_gaussian(popt, parameters)
 
                 if boundary_width < parameters['low_boundary_range'] or boundary_width > parameters['high_boundary_range']:
-                    matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
+                    matrix_variables.remove_cur_max(mz_index, mz_index, scan_index, scan_index)
                     continue
+
+                first_index = bisect_left(rt_array, rt_boundaries[0])
+                last_index = bisect_left(rt_array, rt_boundaries[1])
 
                 bounded_rt_array = []
                 bounded_inten_array = []
 
-                for index, rt in enumerate(rt_array):
-                    if rt_boundaries[0] < rt < rt_boundaries[1]:
-                        bounded_rt_array.append(rt)
-                        bounded_inten_array.append(inten_array[index])
+                for index in range(first_index, last_index):
+                    bounded_rt_array.append(rt_array[index])
+                    bounded_inten_array.append(inten_array[index])
 
-                for rt_index, listed_rt in enumerate(matrix_variables.rt):
-                    if listed_rt == min(bounded_rt_array):
-                        first_scan_boundary = rt_index
-                    elif listed_rt == max(bounded_rt_array):
-                        second_scan_boundary = rt_index
-                        break
-                    else:
-                        continue
+                first_scan_boundary = bisect_left(matrix_variables.rt, min(bounded_rt_array))
+                second_scan_boundary = bisect_left(matrix_variables.rt, max(bounded_rt_array))
 
-                found_mz_list, found_intensity_list, second_mz, second_intensity = find_second_peak(
-                    count, mz_value, scan_index, max_inten, carbon_width_to_range_dict, carbon_number_to_mono_mass,
-                    matrix_variables, parameters)
+                found_mz_list, found_intensity_list, second_mz, second_intensity, found_first_ratio, found_second_ratio, found_inten_array_list, found_starting_index_list, found_ending_index_list = find_second_peak(count, mz_value, scan_index, max_inten, carbon_width_to_range_dict, carbon_number_to_mono_mass, bounded_inten_array, first_scan_boundary, second_scan_boundary, matrix_variables, parameters)
 
                 if found_mz_list is None:
-                    matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
+                    matrix_variables.remove_cur_max(mz_index, mz_index, scan_index, scan_index)
                     continue
-
-                intensity_array_list, starting_mz_list, ending_mz_list, similarity_list = check_EIC(found_mz_list,
-                                                                                                    found_intensity_list,
-                                                                                                    bounded_inten_array,
-                                                                                                    second_intensity,
-                                                                                                    first_scan_boundary,
-                                                                                                    second_scan_boundary,
-                                                                                                    matrix_variables,
-                                                                                                    parameters)
-
-                if intensity_array_list is None:
-                    matrix_variables.remove_cur_max(mz_index, mz_index + 1, first_scan_boundary, second_scan_boundary)
-                    continue
-
-                print similarity_list
 
                 chromatogram_title = 'Original: ' + str(mz_value) + ' | Expected: ' + str(second_mz)
                 feature_title = 'RT: ' + str(rt_of_max_inten) + ' | Scan Index: ' + str(scan_index)
 
-                plot_chromatogram(found_mz_list, mz_value, second_mz, bounded_rt_array, intensity_array_list, count,
+                plot_chromatogram(found_mz_list, mz_value, second_mz, bounded_rt_array, found_inten_array_list, count,
                                   scan_index, chromatogram_title, feature_title, matrix_variables, parameters)
 
-                remove_all_values(starting_mz_list, ending_mz_list, first_scan_boundary, second_scan_boundary,
-                                  matrix_variables)
+                export_data(writer, found_mz_list, rt_of_max_inten, found_first_ratio, found_second_ratio)
+
+                remove_all_values(found_starting_index_list, found_ending_index_list, first_scan_boundary,
+                                  second_scan_boundary, matrix_variables)
 
                 print count
                 count = count + 1
