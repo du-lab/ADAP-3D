@@ -44,7 +44,7 @@ class ContinuousWaveletTransform:
 
         # how far in each direction from the current point do we need to grab data for a succesful wavelet transform?
         # This number is the factor we multiply by the scale. 5 should be good because this is the estimated compact support
-        self.scaleCoefHowFarOut = 5;
+        self.scaleCoefHowFarOut = 5
 
         self.arrScales = pl.array([])
         self.mapScaleToIndex = {}

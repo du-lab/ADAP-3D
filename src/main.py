@@ -50,19 +50,28 @@ PLOT_ALL_PEAKS = True
 
 VERBOSE = False
 
-USE_HARD_CODED_DETECTION_PARAMETERS = False
+USE_HARD_CODED_DETECTION_PARAMETERS = True
 USE_ISOTOPE_PARAMETERS_FOR_ALL = False
-USE_SMALL_TEST_WINDOW = False
+USE_SMALL_TEST_WINDOW = True
 
 # isotopes will be shown for the tmp_mz_of_peak value set
 ONLY_VISUALIZE_ISOTOPES_FOR_NORMAL_DETECTED_PEAK = False
 
 if USE_SMALL_TEST_WINDOW:
     tmp_mz_of_peak = 212.006378174  # 20.25 21.75 rt
-    RT_MIN = 17.25
-    RT_MAX = 21.75
-    MZ_MIN = tmp_mz_of_peak - 10
-    MZ_MAX = tmp_mz_of_peak + 10
+    # RT_MIN = 17.25
+    # RT_MAX = 21.75
+    # MZ_MIN = tmp_mz_of_peak - 10
+    # MZ_MAX = tmp_mz_of_peak + 10
+    # RT_MIN = 19.0
+    # RT_MAX = 21.0
+    # MZ_MIN = 115
+    # MZ_MAX = 117
+
+    RT_MIN = 20.0
+    RT_MAX = 25.0
+    MZ_MIN = 100.0
+    MZ_MAX = 150.0
 
 ##########################################################################
 ########### Important numbers that need to be set ########################
@@ -1630,13 +1639,29 @@ def main():
         ###########################################################
         ####### Test data hard set parameters                 #####
         ###########################################################
+        # peak_duration_range = [2, 100]
+        # isotope_coef_over_area_thresh = 1.0  # Average/1.5
+        # highest_wavelet_scale = 10.0  # avg_peakwidth/2
+        # if USE_ISOTOPE_PARAMETERS_FOR_ALL:
+        #     coef_over_area_thresh = isotope_coef_over_area_thresh
+        # elif not USE_ISOTOPE_PARAMETERS_FOR_ALL:
+        #     coef_over_area_thresh = 1.0  # Average/1.5
+
+        ###########################################################
+        ####### Single-cell data hard set parameters          #####
+        ###########################################################
         peak_duration_range = [2, 100]
-        isotope_coef_over_area_thresh = 1.0  # Average/1.5
+        isotope_coef_over_area_thresh = 89.0  # Average/1.5
         highest_wavelet_scale = 10.0  # avg_peakwidth/2
         if USE_ISOTOPE_PARAMETERS_FOR_ALL:
             coef_over_area_thresh = isotope_coef_over_area_thresh
         elif not USE_ISOTOPE_PARAMETERS_FOR_ALL:
-            coef_over_area_thresh = 1.0  # Average/1.5
+            coef_over_area_thresh = 89.0  # Average/1.5
+
+
+
+
+
 
     # I currently believe this should always be 1.0. Re think this if we start dealing with peaks containing
     # many many more data points than we are currently dealing with.
@@ -1662,7 +1687,8 @@ def main():
 
     the_peak_detector.setWaveletSmallScale(lowest_wavelet_scale)
     the_peak_detector.setWaveletLargeScale(highest_wavelet_scale)
-    the_peak_detector.setWaveletPeakHighestSimilarity("off")
+    # the_peak_detector.setWaveletPeakHighestSimilarity("off")
+    the_peak_detector.setWaveletPeakHighestSimilarity(0.3)
     the_peak_detector.setWaveletScaleIncrement(wavelet_scale_increment)
     the_peak_detector.setPeakDurationRange(peak_duration_range)
 
@@ -1697,7 +1723,7 @@ def main():
         inital_peaks_objects = convert_result_object_to_list_of_peaks(inital_peaks_results)
 
     print "len(all_peak_objects) " + str(len(all_peak_objects))
-    print "type(all_peak_objects[0]): " + str(type(all_peak_objects[0]))
+    # print "type(all_peak_objects[0]): " + str(type(all_peak_objects[0]))
 
     # Make the isotope peak detector. This will be made with the parameters found
     # from the initial peaks. The differen
@@ -1802,8 +1828,10 @@ if __name__ == "__main__":
 
 
 
-# %run -d main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/DC_010814_StandardsMixTest1_34StandardMix_01.mzXML --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
+# %run -d main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/DC_010814_StandardsMixTest1_34StandardMix_01.mzXML --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 --mzupcutoff 400 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
 
 # python main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/Ppyralis_spermatophore_pos_20uL.mzXML --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
 
 # python main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/test_out.CDF --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
+
+# python main.py -f /Volumes/Du-lab Backup 1/Dataset/Peter_Nemes/0317EP D11-E7-TR1.mzXML --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
