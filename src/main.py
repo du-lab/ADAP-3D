@@ -48,11 +48,11 @@ from datamodel import efficient_find_next_max
 
 PLOT_ALL_PEAKS = True
 
-VERBOSE = False
+VERBOSE = True
 
-USE_HARD_CODED_DETECTION_PARAMETERS = True
+USE_HARD_CODED_DETECTION_PARAMETERS = False
 USE_ISOTOPE_PARAMETERS_FOR_ALL = False
-USE_SMALL_TEST_WINDOW = True
+USE_SMALL_TEST_WINDOW = False
 
 # isotopes will be shown for the tmp_mz_of_peak value set
 ONLY_VISUALIZE_ISOTOPES_FOR_NORMAL_DETECTED_PEAK = False
@@ -68,10 +68,10 @@ if USE_SMALL_TEST_WINDOW:
     # MZ_MIN = 115
     # MZ_MAX = 117
 
-    RT_MIN = 20.0
-    RT_MAX = 25.0
-    MZ_MIN = 100.0
-    MZ_MAX = 150.0
+    RT_MIN = 21.0
+    RT_MAX = 24.0
+    MZ_MIN = 114.0
+    MZ_MAX = 119.0
 
 ##########################################################################
 ########### Important numbers that need to be set ########################
@@ -963,6 +963,9 @@ def load_data_points_in_lists(dfr, absolute_intensity_thresh, mz_upper_cutoff):
 
     count = 0
     mz, inten = dfr.get_next_scan_mzvals_intensities()
+    mz = mz[mz <= mz_upper_cutoff]
+    inten = inten[mz <= mz_upper_cutoff]
+
     if not USE_SMALL_TEST_WINDOW:
         while mz is not None:
             # while (count<100):
@@ -976,7 +979,7 @@ def load_data_points_in_lists(dfr, absolute_intensity_thresh, mz_upper_cutoff):
             scan_numbers.append(dfr.get_act_scan_num(count))
             for i in range(len(mz)):
                 # Do not look for methabolites with m/z > this mz_upper_cutoff value.
-                if (mz[i] > 0.0) and (mz[i] < mz_upper_cutoff):
+                if (mz[i] > 0.0) and (mz[i] <= mz_upper_cutoff):
                     # if (mz[i]>0.0)and(mz[i]<1000.0):
                     if inten[i] < absolute_intensity_thresh:
                         continue
@@ -984,6 +987,8 @@ def load_data_points_in_lists(dfr, absolute_intensity_thresh, mz_upper_cutoff):
                     list_all_data_points.append(cur_dp)
 
             mz, inten = dfr.get_next_scan_mzvals_intensities()
+            mz = mz[mz <= mz_upper_cutoff]
+            inten = inten[mz <= mz_upper_cutoff]
 
             count += 1
             # dfr.closeWriter()
@@ -993,6 +998,11 @@ def load_data_points_in_lists(dfr, absolute_intensity_thresh, mz_upper_cutoff):
             # while (count<100):
             # line below is to skip chemical noise in data Change back to aboveline HERE
             # if (count>200)and(count<1200):
+
+            tf = (mz > MZ_MIN and mz <= MZ_MAX)
+            mz = mz[tf]
+            inten = inten[tf]
+
             cur_rt = dfr.get_rt_from_scan_num(count)
             if (cur_rt < (RT_MAX * 60.0)) and (cur_rt > (RT_MIN * 60.0)):
                 #                sys.stdout.write("\r"+str(count))
@@ -1688,7 +1698,7 @@ def main():
     the_peak_detector.setWaveletSmallScale(lowest_wavelet_scale)
     the_peak_detector.setWaveletLargeScale(highest_wavelet_scale)
     # the_peak_detector.setWaveletPeakHighestSimilarity("off")
-    the_peak_detector.setWaveletPeakHighestSimilarity(0.3)
+    the_peak_detector.setWaveletPeakHighestSimilarity(0.1)
     the_peak_detector.setWaveletScaleIncrement(wavelet_scale_increment)
     the_peak_detector.setPeakDurationRange(peak_duration_range)
 
@@ -1834,4 +1844,4 @@ if __name__ == "__main__":
 
 # python main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d/raw/test_out.CDF --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
 
-# python main.py -f /Volumes/Du-lab Backup 1/Dataset/Peter_Nemes/0317EP D11-E7-TR1.mzXML --absoluteintensitythresh 500 --peakintensitythresh 5000 --numinitpeaks 20 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/adap-3d -n results
+# python main.py -f /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/single_cell/0317EP D11-E7-TR1.mzXML --absoluteintensitythresh 10000 --peakintensitythresh 50000 --numinitpeaks 20 --mzupcutoff 200 -o /Users/xdu4/Documents/Duxiuxia/Analysis/my_projects/single_cell -n results
